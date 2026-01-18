@@ -11,10 +11,14 @@
   };
 
   function updateState(state: string): void {
+    console.log('[RENDERER] updateState called with:', state);
     const status = statusMap[state as keyof typeof statusMap];
     if (status) {
+      console.log('[RENDERER] Updating UI to:', status.text, 'class:', status.class);
       statusDot.className = `status-dot ${status.class}`;
       statusText.textContent = status.text;
+    } else {
+      console.log('[RENDERER] Unknown state:', state);
     }
   }
 
