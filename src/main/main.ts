@@ -25,6 +25,11 @@ class KeyboardLessApp {
   private currentState: AppState = 'idle';
   private hasAccessibilityPermission: boolean = false;
 
+  // Double-press detection state
+  private lastCommandPressTime: number = 0;
+  private commandPressTimer: NodeJS.Timeout | null = null;
+  private readonly DOUBLE_PRESS_WINDOW_MS = 400;
+
   constructor() {
     this.setupElectronApp();
     this.setupIPC();
@@ -63,7 +68,7 @@ class KeyboardLessApp {
     ]);
 
     this.tray.setContextMenu(contextMenu);
-    this.tray.setToolTip('KeyboardLess - Hold Command to speak');
+    this.tray.setToolTip('KeyboardLess - Double-press ⌘ to speak, press ⌘ to stop');
   }
 
   private enableHotkeyMonitor(): void {
@@ -88,6 +93,7 @@ class KeyboardLessApp {
       alwaysOnTop: true,
       skipTaskbar: true,
       resizable: false,
+      focusable: false,  // Don't steal focus from other apps
       webPreferences: {
         preload: path.join(__dirname, '../preload/preload.js'),
         contextIsolation: true,
@@ -127,11 +133,16 @@ class KeyboardLessApp {
   private setupHotkeyCallbacks(): void {
     if (!this.hotkeyMonitor) return;
 
+    this.hotkeyMonitor.on('command-quick-press', () => {
+      this.handleCommandQuickPress();
+    });
+
     this.hotkeyMonitor.on('command-down', () => {
       this.handleCommandDown();
     });
 
     this.hotkeyMonitor.on('command-up', () => {
+      console.log('[DEBUG] command-up event received, current state:', this.currentState);
       this.handleCommandUp();
     });
   }
@@ -152,52 +163,115 @@ class KeyboardLessApp {
     }
   }
 
-  private async handleCommandUp(): Promise<void> {
-    if (this.currentState !== 'listening') return;
+  private handleCommandQuickPress(): void {
+    const now = Date.now();
+    const timeSinceLastPress = now - this.lastCommandPressTime;
 
+    console.log('[DEBUG] Quick press detected, state:', this.currentState, 'timeSinceLastPress:', timeSinceLastPress);
+
+    // Clear any existing timer
+    if (this.commandPressTimer) {
+      clearTimeout(this.commandPressTimer);
+      this.commandPressTimer = null;
+    }
+
+    if (this.currentState === 'listening') {
+      // Recording is active - single press stops recording
+      console.log('[DEBUG] Stopping recording due to single press');
+      this.handleCommandUp();
+    } else if (this.currentState === 'idle') {
+      // Check for double-press within 400ms
+      if (timeSinceLastPress < this.DOUBLE_PRESS_WINDOW_MS && timeSinceLastPress > 0) {
+        // Double-press detected - start recording
+        console.log('[DEBUG] Double-press detected, starting recording');
+        this.lastCommandPressTime = 0; // Reset to prevent triple-press from triggering again
+        this.handleCommandDown();
+      } else {
+        // First press - wait for second press or timeout
+        console.log('[DEBUG] First press, starting timer');
+        this.lastCommandPressTime = now;
+        this.commandPressTimer = setTimeout(() => {
+          console.log('[DEBUG] Double-press timeout, resetting');
+          this.lastCommandPressTime = 0;
+          this.commandPressTimer = null;
+        }, this.DOUBLE_PRESS_WINDOW_MS);
+      }
+    }
+  }
+
+  private async handleCommandUp(): Promise<void> {
+    console.log('[DEBUG] handleCommandUp called, current state:', this.currentState);
+
+    if (this.currentState !== 'listening') {
+      console.log('[DEBUG] Early return: state is not listening');
+      return;
+    }
+
+    console.log('[DEBUG] Setting state to transcribing');
     this.setState('transcribing');
 
     if (this.statusWindow) {
+      console.log('[DEBUG] Sending state-changed transcribing to renderer');
       this.statusWindow.webContents.send('state-changed', 'transcribing');
+    } else {
+      console.log('[DEBUG] No status window to send to');
     }
 
-    // Stop recording and get audio data
-    if (this.audioRecorder) {
-      this.audioRecorder.stop();
-      const audioData = this.audioRecorder.getAudioData();
+    try {
+      // Stop recording and get audio data
+      if (this.audioRecorder) {
+        console.log('[DEBUG] Stopping audio recorder');
+        this.audioRecorder.stop();
+        const audioData = this.audioRecorder.getAudioData();
+        console.log('[DEBUG] Audio data length:', audioData.length);
 
-      // Transcribe audio data
-      if (this.whisperEngine && audioData.length > 0) {
-        const text = await this.whisperEngine.transcribeAudioData(audioData);
+        // Transcribe audio data
+        if (this.whisperEngine && audioData.length > 0) {
+          console.log('[DEBUG] Starting transcription');
+          const text = await this.whisperEngine.transcribeAudioData(audioData);
+          console.log('[DEBUG] Transcription result:', text);
 
-        if (text && text.trim().length > 0) {
-          this.setState('typing');
+          if (text && text.trim().length > 0) {
+            this.setState('typing');
 
-          if (this.statusWindow) {
-            this.statusWindow.webContents.send('state-changed', 'typing');
+            if (this.statusWindow) {
+              this.statusWindow.webContents.send('state-changed', 'typing');
+            }
+
+            // Inject text into focused field
+            if (this.textInjector) {
+              await this.textInjector.injectText(text);
+            }
+
+            // Show preview briefly
+            if (this.statusWindow) {
+              this.statusWindow.webContents.send('text-result', text);
+            }
           }
-
-          // Inject text into focused field
-          if (this.textInjector) {
-            await this.textInjector.injectText(text);
-          }
-
-          // Show preview briefly
-          if (this.statusWindow) {
-            this.statusWindow.webContents.send('text-result', text);
-          }
+        } else {
+          console.log('[DEBUG] Skipping transcription - whisperEngine:', !!this.whisperEngine, 'audioData.length:', audioData.length);
         }
+      } else {
+        console.log('[DEBUG] No audio recorder available');
       }
+    } catch (error) {
+      // Log the error but don't let it prevent state reset
+      console.error('Error during command up handling:', error);
+    } finally {
+      console.log('[DEBUG] Finally block - scheduling state reset to idle');
+      // Always return to idle after a short delay, regardless of success/failure
+      setTimeout(() => {
+        console.log('[DEBUG] Timeout callback - setting state to idle');
+        this.setState('idle');
+        if (this.statusWindow) {
+          console.log('[DEBUG] Sending state-changed idle to renderer');
+          this.statusWindow.webContents.send('state-changed', 'idle');
+          this.hideStatusWindow();
+        } else {
+          console.log('[DEBUG] No status window to send to in timeout');
+        }
+      }, 1000);
     }
-
-    // Return to idle after a short delay
-    setTimeout(() => {
-      this.setState('idle');
-      if (this.statusWindow) {
-        this.statusWindow.webContents.send('state-changed', 'idle');
-        this.hideStatusWindow();
-      }
-    }, 1000);
   }
 
   private setState(state: AppState): void {
@@ -226,9 +300,17 @@ class KeyboardLessApp {
 
   private showStatusWindow(): void {
     if (this.statusWindow) {
-      const mousePos = require('electron').screen.getCursorScreenPoint();
-      this.statusWindow.setPosition(mousePos.x - 150, mousePos.y - 100);
-      this.statusWindow.show();
+      const screen = require('electron').screen;
+      const primaryDisplay = screen.getPrimaryDisplay();
+      const workArea = primaryDisplay.workArea;
+
+      // Center horizontally: (screen width - window width) / 2
+      const x = (workArea.width - 300) / 2;
+      // Position near bottom: screen height - window height - padding
+      const y = workArea.height - 200 - 20; // 20px padding from bottom
+
+      this.statusWindow.setPosition(x + workArea.x, y + workArea.y);
+      this.statusWindow.showInactive();
     }
   }
 
