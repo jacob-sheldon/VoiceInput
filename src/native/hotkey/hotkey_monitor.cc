@@ -29,7 +29,8 @@ class HotkeyMonitor : public Nan::ObjectWrap {
     // Capture 'this' and pass lambdas to impl
     impl_ = new HotkeyMonitorImpl(
       [this]() { this->NotifyCommandDown(); },
-      [this]() { this->NotifyCommandUp(); }
+      [this]() { this->NotifyCommandUp(); },
+      [this]() { this->NotifyCommandQuickPress(); }
     );
   }
 
@@ -117,6 +118,46 @@ class HotkeyMonitor : public Nan::ObjectWrap {
     }
   }
 
+  // Called from native impl when command key is quickly pressed
+  void NotifyCommandQuickPress() {
+    printf("[Hotkey] NotifyCommandQuickPress called\n"); fflush(stdout);
+    if (command_quick_press_cb_) {
+      printf("[Hotkey] Calling JS callback\n"); fflush(stdout);
+      Nan::HandleScope scope;
+      v8::Isolate* isolate = v8::Isolate::GetCurrent();
+      v8::Local<v8::Context> context = isolate->GetCurrentContext();
+
+      // CRITICAL: Enter the context scope before calling JS
+      v8::Context::Scope context_scope(context);
+      printf("[Hotkey] Context scope entered\n"); fflush(stdout);
+
+      v8::Local<v8::Function> js_func = command_quick_press_cb_->GetFunction();
+      printf("[Hotkey] Got function\n"); fflush(stdout);
+
+      if (!js_func->IsFunction()) {
+        printf("[Hotkey] ERROR: Not a function!\n"); fflush(stdout);
+        return;
+      }
+
+      v8::TryCatch trycatch(isolate);
+      printf("[Hotkey] Calling function\n"); fflush(stdout);
+
+      v8::MaybeLocal<v8::Value> result = js_func->Call(
+        context,
+        v8::Null(isolate),
+        0,
+        nullptr
+      );
+
+      if (trycatch.HasCaught()) {
+        printf("[Hotkey] EXCEPTION in JS callback!\n"); fflush(stdout);
+        trycatch.Reset();
+      } else {
+        printf("[Hotkey] JS callback returned\n"); fflush(stdout);
+      }
+    }
+  }
+
   static NAN_METHOD(New) {
     if (info.IsConstructCall()) {
       HotkeyMonitor* obj = new HotkeyMonitor();
@@ -157,6 +198,9 @@ class HotkeyMonitor : public Nan::ObjectWrap {
     } else if (strcmp(*event, "command-up") == 0) {
       obj->command_up_cb_.reset(new Nan::Callback(info[1].As<v8::Function>()));
       printf("[Hotkey] command-up callback registered\n"); fflush(stdout);
+    } else if (strcmp(*event, "command-quick-press") == 0) {
+      obj->command_quick_press_cb_.reset(new Nan::Callback(info[1].As<v8::Function>()));
+      printf("[Hotkey] command-quick-press callback registered\n"); fflush(stdout);
     }
 
     info.GetReturnValue().SetUndefined();
@@ -182,6 +226,7 @@ class HotkeyMonitor : public Nan::ObjectWrap {
   HotkeyMonitorImpl* impl_;
   std::unique_ptr<Nan::Callback> command_down_cb_;
   std::unique_ptr<Nan::Callback> command_up_cb_;
+  std::unique_ptr<Nan::Callback> command_quick_press_cb_;
 };
 
 NODE_MODULE(hotkey_monitor, HotkeyMonitor::Init)

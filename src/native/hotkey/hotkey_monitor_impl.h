@@ -13,7 +13,7 @@ class HotkeyMonitorImpl {
   // Callback types
   using CommandCallback = std::function<void()>;
 
-  explicit HotkeyMonitorImpl(CommandCallback on_down, CommandCallback on_up);
+  explicit HotkeyMonitorImpl(CommandCallback on_down, CommandCallback on_up, CommandCallback on_quick_press);
   ~HotkeyMonitorImpl();
 
   void Start();
@@ -28,6 +28,7 @@ class HotkeyMonitorImpl {
   std::unique_ptr<Impl> impl_;
   CommandCallback on_command_down_;
   CommandCallback on_command_up_;
+  CommandCallback on_command_quick_press_;
 };
 
 #endif  // HOTKEY_MONITOR_IMPL_H
