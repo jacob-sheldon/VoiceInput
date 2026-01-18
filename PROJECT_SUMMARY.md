@@ -107,15 +107,15 @@ KeyboardLess/
 
 ## How It Works
 
-1. **User holds Command key**
-   - HotkeyMonitor detects the event
+1. **User double-presses Command key**
+   - HotkeyMonitor detects the double-press gesture
    - Main process starts audio recording
 
 2. **User speaks**
    - Audio is recorded to temp file
    - Status window shows "Listening"
 
-3. **User releases Command key**
+3. **User presses Command key once**
    - Recording stops
    - Whisper.cpp transcribes audio
    - Status window shows "Transcribing"

@@ -80,8 +80,10 @@ To verify everything is working:
 1. Run `npm start`
 2. Look for the menu bar icon (K)
 3. Open any text editor
-4. Hold Command key and speak
-5. Release and see text appear
+4. Double-press Command key (⌘) quickly to start recording
+5. Speak
+6. Press Command key once to stop recording
+7. See text appear in the text editor
 
 ## Project File Overview
 
