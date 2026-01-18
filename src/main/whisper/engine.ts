@@ -39,12 +39,33 @@ export class WhisperEngine {
   }
 
   private getWhisperPath(): string {
-    // Path to the compiled whisper.cpp binary
-    return path.join(__dirname, '../../../native-deps/whisper.cpp/build/bin/whisper-cli');
+    // Try development path first (check if it exists)
+    const devPath = path.join(__dirname, '../../../native-deps/whisper.cpp/build/bin/whisper-cli');
+    if (fs.existsSync(devPath)) {
+      return devPath;
+    }
+
+    // Fall back to production path
+    if (process.resourcesPath) {
+      return path.join(process.resourcesPath, 'app.asar.unpacked/native-deps/whisper.cpp/build/bin/whisper-cli');
+    }
+
+    return devPath; // Will fail with a clear error message
   }
 
   private getModelPath(): string {
-    return path.join(__dirname, `../../../native-deps/whisper.cpp/models/ggml-${this.config.model}.en.bin`);
+    // Try development path first (check if it exists)
+    const devPath = path.join(__dirname, `../../../native-deps/whisper.cpp/models/ggml-${this.config.model}.en.bin`);
+    if (fs.existsSync(devPath)) {
+      return devPath;
+    }
+
+    // Fall back to production path
+    if (process.resourcesPath) {
+      return path.join(process.resourcesPath, `whisper/models/ggml-${this.config.model}.en.bin`);
+    }
+
+    return devPath; // Will fail with a clear error message
   }
 
   async startRecording(): Promise<void> {
