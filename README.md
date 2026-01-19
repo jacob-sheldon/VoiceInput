@@ -180,6 +180,41 @@ npm run dev
 npm run dist:mac
 ```
 
+### Git Worktree Workflow
+
+This project uses git worktree for parallel feature development:
+
+1. Create a new worktree for a feature:
+   ```bash
+   git worktree add -b feature/your-feature-name ../KeyboardLess-feature main
+   ```
+
+2. Navigate to the worktree:
+   ```bash
+   cd ../KeyboardLess-feature
+   ```
+
+3. Make your changes and commit in the worktree:
+   ```bash
+   git add .
+   git commit -m "feat: description of your changes"
+   ```
+
+4. Push the feature branch:
+   ```bash
+   git push -u origin feature/your-feature-name
+   ```
+
+5. List all worktrees:
+   ```bash
+   git worktree list
+   ```
+
+6. Remove worktree after merge:
+   ```bash
+   git worktree remove ../KeyboardLess-feature
+   ```
+
 ### Project Status
 
 | Component | Status |
@@ -194,6 +229,20 @@ npm run dist:mac
 ### Recent Fixes
 
 **v1.0.0** - Fixed hotkey monitor not starting when accessibility permission was already granted. The monitor now starts automatically on app launch when permission exists.
+
+## Development Roadmap
+
+### Upcoming Features
+
+| Feature | Status | Priority |
+|---------|--------|----------|
+| Chinese Language Support | 📋 Planned | High |
+
+#### Chinese Language Support
+- [ ] Remove `-l` language flag to enable auto-detection
+- [ ] Download general Whisper models (without `.en` suffix)
+- [ ] Update model path logic for multi-language models
+- [ ] Update documentation for Chinese users
 
 ## Troubleshooting
 
