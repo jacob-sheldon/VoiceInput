@@ -2,6 +2,13 @@
 #define TEXT_INJECTION_IMPL_H
 
 #include <string>
+#include <map>
+
+struct AppInfo {
+  std::string bundleId;
+  bool isTerminal;
+  std::string appName;
+};
 
 class TextInjectionImpl {
  public:
@@ -9,6 +16,8 @@ class TextInjectionImpl {
   ~TextInjectionImpl();
 
   bool InjectText(const std::string& text);
+  AppInfo GetFocusedAppInfo();
+  bool InjectTextViaClipboard(const std::string& text);
 
  private:
   class Impl;

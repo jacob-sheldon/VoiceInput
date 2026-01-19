@@ -11,6 +11,8 @@ class TextInjection : public Nan::ObjectWrap {
     tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
     Nan::SetPrototypeMethod(tpl, "injectText", InjectText);
+    Nan::SetPrototypeMethod(tpl, "getFocusedAppInfo", GetFocusedAppInfo);
+    Nan::SetPrototypeMethod(tpl, "injectTextViaClipboard", InjectTextViaClipboard);
 
     constructor().Reset(Nan::GetFunction(tpl).ToLocalChecked());
     Nan::Set(target, Nan::New("TextInjection").ToLocalChecked(),
@@ -48,6 +50,36 @@ class TextInjection : public Nan::ObjectWrap {
 
     Nan::Utf8String text(info[0]);
     bool success = obj->impl_->InjectText(*text);
+
+    info.GetReturnValue().Set(Nan::New(success));
+  }
+
+  static NAN_METHOD(GetFocusedAppInfo) {
+    TextInjection* obj = ObjectWrap::Unwrap<TextInjection>(info.Holder());
+
+    AppInfo appInfo = obj->impl_->GetFocusedAppInfo();
+
+    Local<Object> result = Nan::New<Object>();
+    Nan::Set(result, Nan::New("bundleId").ToLocalChecked(),
+             Nan::New(appInfo.bundleId.c_str()).ToLocalChecked());
+    Nan::Set(result, Nan::New("isTerminal").ToLocalChecked(),
+             Nan::New(appInfo.isTerminal));
+    Nan::Set(result, Nan::New("appName").ToLocalChecked(),
+             Nan::New(appInfo.appName.c_str()).ToLocalChecked());
+
+    info.GetReturnValue().Set(result);
+  }
+
+  static NAN_METHOD(InjectTextViaClipboard) {
+    TextInjection* obj = ObjectWrap::Unwrap<TextInjection>(info.Holder());
+
+    if (info.Length() < 1 || !info[0]->IsString()) {
+      Nan::ThrowTypeError("Wrong arguments");
+      return;
+    }
+
+    Nan::Utf8String text(info[0]);
+    bool success = obj->impl_->InjectTextViaClipboard(*text);
 
     info.GetReturnValue().Set(Nan::New(success));
   }
