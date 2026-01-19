@@ -153,7 +153,7 @@ class KeyboardLessApp {
     }
 
     this.statusWindow = new BrowserWindow(windowOptions);
-    this.statusWindow.loadFile(path.join(__dirname, '../../src/renderer/index.html'));
+    this.statusWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
   private initializeNativeModules(): void {
@@ -283,7 +283,6 @@ class KeyboardLessApp {
             if (this.textInjector) {
               try {
                 const appInfo = await this.textInjector.getFocusedAppInfo();
-
                 // Use clipboard-based injection for terminals, direct injection otherwise
                 if (appInfo.isTerminal) {
                   await this.textInjector.injectTextViaClipboard(text);
@@ -410,7 +409,7 @@ class KeyboardLessApp {
       }
     });
 
-    this.permissionWindow.loadFile(path.join(__dirname, '../../src/renderer/permission.html'));
+    this.permissionWindow.loadFile(path.join(__dirname, '../renderer/permission.html'));
 
     // Clean up when window is closed
     this.permissionWindow.on('closed', () => {
