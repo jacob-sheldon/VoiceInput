@@ -41,11 +41,9 @@ class AudioRecorder extends EventEmitter {
     const nativeRecorder = new NativeAudioRecorder();
     // Forward 'audio-level' events from native to this emitter
     nativeRecorder.on('audio-level', (level: number) => {
-      console.log('[DEBUG] Audio level from native:', level);
       this.emit('audio-level', level);
     });
     this.nativeRecorder = nativeRecorder;
-    console.log('[DEBUG] AudioRecorder initialized, listening for events from native recorder');
   }
   start(): boolean {
     return this.nativeRecorder.start();
@@ -122,7 +120,6 @@ class KeyboardLessApp {
   private enableHotkeyMonitor(): void {
     if (this.hotkeyMonitor && !this.hotkeyMonitor.isRunning) {
       this.hotkeyMonitor.start();
-      console.log('Hotkey monitor enabled manually');
     }
   }
 
@@ -171,10 +168,8 @@ class KeyboardLessApp {
       // Set up audio level monitoring
       this.audioRecorder.on('audio-level', (level: number) => {
         if (this.currentState === 'listening') {
-          console.log('[DEBUG] Audio level in main process, statusWindow exists:', !!this.statusWindow, 'level:', level);
           if (this.statusWindow) {
             this.statusWindow.webContents.send('audio-level', level);
-            console.log('[DEBUG] Sent audio-level to renderer');
           }
         }
       });
@@ -185,10 +180,8 @@ class KeyboardLessApp {
       if (this.hasAccessibilityPermission) {
         // Start hotkey monitor now that we have permission
         this.hotkeyMonitor.start();
-        console.log('Native modules initialized successfully (accessibility granted, hotkey started)');
       } else {
         // Show permission window if permission is not granted
-        console.log('Native modules initialized (waiting for accessibility permission)');
         this.showPermissionWindow();
       }
     } catch (error) {
@@ -208,7 +201,6 @@ class KeyboardLessApp {
     });
 
     this.hotkeyMonitor.on('command-up', () => {
-      console.log('[DEBUG] command-up event received, current state:', this.currentState);
       this.handleCommandUp();
     });
   }
@@ -233,8 +225,6 @@ class KeyboardLessApp {
     const now = Date.now();
     const timeSinceLastPress = now - this.lastCommandPressTime;
 
-    console.log('[DEBUG] Quick press detected, state:', this.currentState, 'timeSinceLastPress:', timeSinceLastPress);
-
     // Clear any existing timer
     if (this.commandPressTimer) {
       clearTimeout(this.commandPressTimer);
@@ -243,21 +233,17 @@ class KeyboardLessApp {
 
     if (this.currentState === 'listening') {
       // Recording is active - single press stops recording
-      console.log('[DEBUG] Stopping recording due to single press');
       this.handleCommandUp();
     } else if (this.currentState === 'idle') {
       // Check for double-press within 400ms
       if (timeSinceLastPress < this.DOUBLE_PRESS_WINDOW_MS && timeSinceLastPress > 0) {
         // Double-press detected - start recording
-        console.log('[DEBUG] Double-press detected, starting recording');
         this.lastCommandPressTime = 0; // Reset to prevent triple-press from triggering again
         this.handleCommandDown();
       } else {
         // First press - wait for second press or timeout
-        console.log('[DEBUG] First press, starting timer');
         this.lastCommandPressTime = now;
         this.commandPressTimer = setTimeout(() => {
-          console.log('[DEBUG] Double-press timeout, resetting');
           this.lastCommandPressTime = 0;
           this.commandPressTimer = null;
         }, this.DOUBLE_PRESS_WINDOW_MS);
@@ -266,36 +252,25 @@ class KeyboardLessApp {
   }
 
   private async handleCommandUp(): Promise<void> {
-    console.log('[DEBUG] handleCommandUp called, current state:', this.currentState);
-
     if (this.currentState !== 'listening') {
-      console.log('[DEBUG] Early return: state is not listening');
       return;
     }
 
-    console.log('[DEBUG] Setting state to transcribing');
     this.setState('transcribing');
 
     if (this.statusWindow) {
-      console.log('[DEBUG] Sending state-changed transcribing to renderer');
       this.statusWindow.webContents.send('state-changed', 'transcribing');
-    } else {
-      console.log('[DEBUG] No status window to send to');
     }
 
     try {
       // Stop recording and get audio data
       if (this.audioRecorder) {
-        console.log('[DEBUG] Stopping audio recorder');
         this.audioRecorder.stop();
         const audioData = this.audioRecorder.getAudioData();
-        console.log('[DEBUG] Audio data length:', audioData.length);
 
         // Transcribe audio data
         if (this.whisperEngine && audioData.length > 0) {
-          console.log('[DEBUG] Starting transcription');
           const text = await this.whisperEngine.transcribeAudioData(audioData);
-          console.log('[DEBUG] Transcription result:', text);
 
           if (text && text.trim().length > 0) {
             this.setState('typing');
@@ -307,19 +282,13 @@ class KeyboardLessApp {
             // Inject text into focused field
             if (this.textInjector) {
               try {
-                console.log('[DEBUG] Getting focused app info...');
                 const appInfo = await this.textInjector.getFocusedAppInfo();
-                console.log('[DEBUG] Focused app:', appInfo);
 
                 // Use clipboard-based injection for terminals, direct injection otherwise
                 if (appInfo.isTerminal) {
-                  console.log('[DEBUG] Using clipboard injection for terminal:', appInfo.appName);
                   await this.textInjector.injectTextViaClipboard(text);
-                  console.log('[DEBUG] Clipboard injection completed');
                 } else {
-                  console.log('[DEBUG] Using direct injection for:', appInfo.appName);
                   await this.textInjector.injectText(text);
-                  console.log('[DEBUG] Direct injection completed');
                 }
               } catch (error) {
                 console.error('[ERROR] Text injection failed:', error);
@@ -332,27 +301,18 @@ class KeyboardLessApp {
               this.statusWindow.webContents.send('text-result', text);
             }
           }
-        } else {
-          console.log('[DEBUG] Skipping transcription - whisperEngine:', !!this.whisperEngine, 'audioData.length:', audioData.length);
         }
-      } else {
-        console.log('[DEBUG] No audio recorder available');
       }
     } catch (error) {
       // Log the error but don't let it prevent state reset
       console.error('Error during command up handling:', error);
     } finally {
-      console.log('[DEBUG] Finally block - scheduling state reset to idle');
       // Always return to idle after a short delay, regardless of success/failure
       setTimeout(() => {
-        console.log('[DEBUG] Timeout callback - setting state to idle');
         this.setState('idle');
         if (this.statusWindow) {
-          console.log('[DEBUG] Sending state-changed idle to renderer');
           this.statusWindow.webContents.send('state-changed', 'idle');
           this.hideStatusWindow();
-        } else {
-          console.log('[DEBUG] No status window to send to in timeout');
         }
       }, 1000);
     }
@@ -390,16 +350,12 @@ class KeyboardLessApp {
     if (focusedWindow) {
       const display = screen.getDisplayMatching(focusedWindow.getBounds());
       workArea = display.workArea;
-      console.log('[DEBUG] showStatusWindow - using focused window display');
     } else {
       // Fallback: use the display where the cursor is (user is likely working there)
       const cursorPoint = screen.getCursorScreenPoint();
       const display = screen.getDisplayNearestPoint(cursorPoint);
       workArea = display.workArea;
-      console.log('[DEBUG] showStatusWindow - using cursor display (fallback)');
     }
-
-    console.log('[DEBUG] showStatusWindow - workArea:', workArea);
 
     // Center horizontally: (screen width - window width) / 2
     const x = (workArea.width - 200) / 2;
@@ -408,7 +364,6 @@ class KeyboardLessApp {
 
     const finalX = Math.floor(x + workArea.x);
     const finalY = Math.floor(y + workArea.y);
-    console.log('[DEBUG] showStatusWindow - final position:', { x: finalX, y: finalY });
 
     // Destroy existing window and recreate with correct position
     if (this.statusWindow) {
@@ -481,7 +436,6 @@ class KeyboardLessApp {
     this.hasAccessibilityPermission = true;
     if (this.hotkeyMonitor && !this.hotkeyMonitor.isRunning) {
       this.hotkeyMonitor.start();
-      console.log('Hotkey monitoring started after permission granted');
     }
     this.closePermissionWindow();
   }

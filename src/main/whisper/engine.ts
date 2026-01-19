@@ -107,11 +107,6 @@ export class WhisperEngine {
         return;
       }
 
-      this.recordingProcess.stderr?.on('data', (data) => {
-        // FFmpeg writes to stderr
-        console.log('Recording:', data.toString());
-      });
-
       // Wait a bit to ensure recording started
       setTimeout(() => resolve(), 100);
     });

@@ -12,10 +12,8 @@
   };
 
   function updateState(state: string): void {
-    console.log('[RENDERER] updateState called with:', state);
     const status = statusMap[state as keyof typeof statusMap];
     if (status) {
-      console.log('[RENDERER] Updating UI to:', status.text);
       statusText.textContent = status.text;
 
       // Show/hide animations based on state
@@ -35,13 +33,10 @@
           loadingDots.style.display = 'none';
           break;
       }
-    } else {
-      console.log('[RENDERER] Unknown state:', state);
     }
   }
 
   function updateWaveBars(level: number): void {
-    console.log('[RENDERER] updateWaveBars called with level:', level);
     // Level is 0.0 to 1.0
     // Scale each bar with some variation for visual interest
     const baseHeight = 4;
@@ -57,15 +52,10 @@
   }
 
   // Listen for audio level updates
-  console.log('[RENDERER] Setting up audio level listener, window.electronAPI:', !!window.electronAPI);
-  if (window.electronAPI) {
-    console.log('[RENDERER] window.electronAPI.onAudioLevel:', typeof window.electronAPI.onAudioLevel);
-  }
   if (window.electronAPI && window.electronAPI.onAudioLevel) {
     window.electronAPI.onAudioLevel((level: number) => {
       updateWaveBars(level);
     });
-    console.log('[RENDERER] Audio level listener registered');
   }
 
   // Listen for state changes
