@@ -1,18 +1,66 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, Menu, Tray, nativeImage, NativeImage, screen } from 'electron';
 import * as path from 'path';
+import { EventEmitter } from 'events';
 import { WhisperEngine } from './whisper/engine';
 import { AppState } from './types';
+import * as fs from 'fs';
+const util = require('util');
 
 // Import native modules (directly from .node files)
-const nativeModulePath = path.join(__dirname, '../../build/Release');
+// In production, native modules are unpacked to app.asar.unpacked
+// Detect development vs production by checking if build directory exists
+const devModulePath = path.join(__dirname, '../../build/Release');
+const isDevelopment = fs.existsSync(devModulePath);
+const nativeModulePath = isDevelopment
+  ? devModulePath
+  : path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'Release');
 const HotkeyMonitorModule = require(path.join(nativeModulePath, 'hotkey_monitor.node'));
 const TextInjectorModule = require(path.join(nativeModulePath, 'text_injection.node'));
 const AudioRecorderModule = require(path.join(nativeModulePath, 'audio_recorder.node'));
 
 // Extract the classes from the modules
-const HotkeyMonitor = HotkeyMonitorModule.HotkeyMonitor;
+// Make HotkeyMonitor inherit from EventEmitter if it doesn't already
+const NativeHotkeyMonitor = HotkeyMonitorModule.HotkeyMonitor;
+if (!NativeHotkeyMonitor.prototype.on) {
+  util.inherits(NativeHotkeyMonitor, EventEmitter);
+  Object.setPrototypeOf(NativeHotkeyMonitor.prototype, EventEmitter.prototype);
+}
+const HotkeyMonitor = NativeHotkeyMonitor;
 const TextInjector = TextInjectorModule.TextInjection;
-const AudioRecorder = AudioRecorderModule.AudioRecorder;
+
+// Wrap AudioRecorder with EventEmitter
+const NativeAudioRecorder = AudioRecorderModule.AudioRecorder;
+// Make NativeAudioRecorder inherit from EventEmitter if it doesn't already
+if (!NativeAudioRecorder.prototype.on) {
+  util.inherits(NativeAudioRecorder, EventEmitter);
+  Object.setPrototypeOf(NativeAudioRecorder.prototype, EventEmitter.prototype);
+}
+class AudioRecorder extends EventEmitter {
+  constructor() {
+    super();
+    const nativeRecorder = new NativeAudioRecorder();
+    // Forward 'audio-level' events from native to this emitter
+    nativeRecorder.on('audio-level', (level: number) => {
+      console.log('[DEBUG] Audio level from native:', level);
+      this.emit('audio-level', level);
+    });
+    this.nativeRecorder = nativeRecorder;
+    console.log('[DEBUG] AudioRecorder initialized, listening for events from native recorder');
+  }
+  start(): boolean {
+    return this.nativeRecorder.start();
+  }
+  stop(): void {
+    this.nativeRecorder.stop();
+  }
+  getAudioData(): Buffer {
+    return this.nativeRecorder.getAudioData();
+  }
+  getAudioLevel(): number {
+    return this.nativeRecorder.getAudioLevel();
+  }
+  private nativeRecorder: any;
+}
 
 class KeyboardLessApp {
   private tray: Tray | null = null;
@@ -85,8 +133,8 @@ class KeyboardLessApp {
 
   private createStatusWindow(x?: number, y?: number): void {
     const windowOptions: any = {
-      width: 300,
-      height: 200,
+      width: 200,
+      height: 60,
       show: false,
       frame: false,
       transparent: true,
@@ -119,6 +167,17 @@ class KeyboardLessApp {
       this.whisperEngine = new WhisperEngine({ model: 'base' });
 
       this.setupHotkeyCallbacks();
+
+      // Set up audio level monitoring
+      this.audioRecorder.on('audio-level', (level: number) => {
+        if (this.currentState === 'listening') {
+          console.log('[DEBUG] Audio level in main process, statusWindow exists:', !!this.statusWindow, 'level:', level);
+          if (this.statusWindow) {
+            this.statusWindow.webContents.send('audio-level', level);
+            console.log('[DEBUG] Sent audio-level to renderer');
+          }
+        }
+      });
 
       // Check accessibility permission
       this.hasAccessibilityPermission = HotkeyMonitor.checkAccessibilityPermission();
@@ -343,9 +402,9 @@ class KeyboardLessApp {
     console.log('[DEBUG] showStatusWindow - workArea:', workArea);
 
     // Center horizontally: (screen width - window width) / 2
-    const x = (workArea.width - 300) / 2;
+    const x = (workArea.width - 200) / 2;
     // Position near bottom: screen height - window height - padding
-    const y = workArea.height - 200 - 20; // 20px padding from bottom
+    const y = workArea.height - 60 - 20; // 20px padding from bottom
 
     const finalX = Math.floor(x + workArea.x);
     const finalY = Math.floor(y + workArea.y);

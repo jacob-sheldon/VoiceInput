@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTextResult: (callback: (text: string) => void) => {
     ipcRenderer.on('text-result', (_event, text) => callback(text));
   },
+  onAudioLevel: (callback: (level: number) => void) => {
+    ipcRenderer.on('audio-level', (_event, level) => callback(level));
+  },
   // Permission-related methods
   checkAccessibilityPermission: () => ipcRenderer.invoke('check-accessibility-permission'),
   requestAccessibilityPermission: () => ipcRenderer.invoke('request-accessibility-permission'),
