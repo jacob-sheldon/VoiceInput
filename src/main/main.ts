@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, globalShortcut, Menu, Tray, nativeImage, NativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, globalShortcut, Menu, Tray, nativeImage, NativeImage, screen } from 'electron';
 import * as path from 'path';
 import { WhisperEngine } from './whisper/engine';
 import { AppState } from './types';
@@ -83,8 +83,8 @@ class KeyboardLessApp {
     return nativeImage.createEmpty();
   }
 
-  private createStatusWindow(): void {
-    this.statusWindow = new BrowserWindow({
+  private createStatusWindow(x?: number, y?: number): void {
+    const windowOptions: any = {
       width: 300,
       height: 200,
       show: false,
@@ -99,8 +99,15 @@ class KeyboardLessApp {
         contextIsolation: true,
         nodeIntegration: false
       }
-    });
+    };
 
+    // Set position if provided
+    if (x !== undefined && y !== undefined) {
+      windowOptions.x = x;
+      windowOptions.y = y;
+    }
+
+    this.statusWindow = new BrowserWindow(windowOptions);
     this.statusWindow.loadFile(path.join(__dirname, '../../src/renderer/index.html'));
   }
 
@@ -240,7 +247,25 @@ class KeyboardLessApp {
 
             // Inject text into focused field
             if (this.textInjector) {
-              await this.textInjector.injectText(text);
+              try {
+                console.log('[DEBUG] Getting focused app info...');
+                const appInfo = await this.textInjector.getFocusedAppInfo();
+                console.log('[DEBUG] Focused app:', appInfo);
+
+                // Use clipboard-based injection for terminals, direct injection otherwise
+                if (appInfo.isTerminal) {
+                  console.log('[DEBUG] Using clipboard injection for terminal:', appInfo.appName);
+                  await this.textInjector.injectTextViaClipboard(text);
+                  console.log('[DEBUG] Clipboard injection completed');
+                } else {
+                  console.log('[DEBUG] Using direct injection for:', appInfo.appName);
+                  await this.textInjector.injectText(text);
+                  console.log('[DEBUG] Direct injection completed');
+                }
+              } catch (error) {
+                console.error('[ERROR] Text injection failed:', error);
+                // Continue anyway - show preview even if injection failed
+              }
             }
 
             // Show preview briefly
@@ -299,18 +324,45 @@ class KeyboardLessApp {
   }
 
   private showStatusWindow(): void {
+    let workArea;
+
+    // Try to get the display where the focused window is
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (focusedWindow) {
+      const display = screen.getDisplayMatching(focusedWindow.getBounds());
+      workArea = display.workArea;
+      console.log('[DEBUG] showStatusWindow - using focused window display');
+    } else {
+      // Fallback: use the display where the cursor is (user is likely working there)
+      const cursorPoint = screen.getCursorScreenPoint();
+      const display = screen.getDisplayNearestPoint(cursorPoint);
+      workArea = display.workArea;
+      console.log('[DEBUG] showStatusWindow - using cursor display (fallback)');
+    }
+
+    console.log('[DEBUG] showStatusWindow - workArea:', workArea);
+
+    // Center horizontally: (screen width - window width) / 2
+    const x = (workArea.width - 300) / 2;
+    // Position near bottom: screen height - window height - padding
+    const y = workArea.height - 200 - 20; // 20px padding from bottom
+
+    const finalX = Math.floor(x + workArea.x);
+    const finalY = Math.floor(y + workArea.y);
+    console.log('[DEBUG] showStatusWindow - final position:', { x: finalX, y: finalY });
+
+    // Destroy existing window and recreate with correct position
     if (this.statusWindow) {
-      const screen = require('electron').screen;
-      const primaryDisplay = screen.getPrimaryDisplay();
-      const workArea = primaryDisplay.workArea;
+      this.statusWindow.destroy();
+    }
 
-      // Center horizontally: (screen width - window width) / 2
-      const x = (workArea.width - 300) / 2;
-      // Position near bottom: screen height - window height - padding
-      const y = workArea.height - 200 - 20; // 20px padding from bottom
+    this.createStatusWindow(finalX, finalY);
 
-      this.statusWindow.setPosition(x + workArea.x, y + workArea.y);
-      this.statusWindow.showInactive();
+    // Wait for window to be ready, then show
+    if (this.statusWindow) {
+      this.statusWindow.once('ready-to-show', () => {
+        this.statusWindow?.showInactive();
+      });
     }
   }
 
