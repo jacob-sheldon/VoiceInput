@@ -179,9 +179,12 @@ export class WhisperEngine {
         '-of', path.join(this.tempDir, 'output')
       ];
 
-      // Only add language flag if not using auto-detection
+      // Add language flag
       if (this.config.language && this.config.language !== 'auto') {
         args.splice(2, 0, '-l', this.config.language);
+      } else {
+        // Use auto-detection for null or 'auto'
+        args.splice(2, 0, '-l', 'auto');
       }
 
       const process = spawn(whisperPath, args);
