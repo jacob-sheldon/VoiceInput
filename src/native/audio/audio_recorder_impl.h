@@ -3,15 +3,21 @@
 
 #include <vector>
 #include <cstdint>
+#include <functional>
 
 class AudioRecorderImpl {
  public:
+  using AudioLevelCallback = std::function<void(float)>;
+
   AudioRecorderImpl();
   ~AudioRecorderImpl();
 
   bool Start();
   void Stop();
   const std::vector<uint8_t>& GetAudioData() const;
+
+  void SetAudioLevelCallback(AudioLevelCallback callback);
+  float GetAudioLevel() const;
 
  private:
   class Impl;

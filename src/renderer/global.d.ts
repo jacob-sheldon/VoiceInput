@@ -8,6 +8,7 @@ declare global {
       hideWindow: () => Promise<void>;
       onStateChanged: (callback: (state: string) => void) => void;
       onTextResult: (callback: (text: string) => void) => void;
+      onAudioLevel: (callback: (level: number) => void) => void;
     };
   }
 }

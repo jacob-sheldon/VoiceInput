@@ -39,18 +39,17 @@ export class WhisperEngine {
   }
 
   private getWhisperPath(): string {
-    // Try development path first (check if it exists)
-    const devPath = path.join(__dirname, '../../../native-deps/whisper.cpp/build/bin/whisper-cli');
-    if (fs.existsSync(devPath)) {
-      return devPath;
-    }
-
-    // Fall back to production path
+    // In production, check resourcesPath first
     if (process.resourcesPath) {
-      return path.join(process.resourcesPath, 'app.asar.unpacked/native-deps/whisper.cpp/build/bin/whisper-cli');
+      const prodPath = path.join(process.resourcesPath, 'app.asar.unpacked/native-deps/whisper.cpp/build/bin/whisper-cli');
+      if (fs.existsSync(prodPath)) {
+        return prodPath;
+      }
     }
 
-    return devPath; // Will fail with a clear error message
+    // Fall back to development path
+    const devPath = path.join(__dirname, '../../../native-deps/whisper.cpp/build/bin/whisper-cli');
+    return devPath;
   }
 
   private getModelPath(): string {
@@ -117,11 +116,6 @@ export class WhisperEngine {
         reject(new Error('Failed to start recording'));
         return;
       }
-
-      this.recordingProcess.stderr?.on('data', (data) => {
-        // FFmpeg writes to stderr
-        console.log('Recording:', data.toString());
-      });
 
       // Wait a bit to ensure recording started
       setTimeout(() => resolve(), 100);
