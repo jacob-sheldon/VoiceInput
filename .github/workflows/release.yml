@@ -28,6 +28,9 @@ jobs:
       - name: Clean previous builds
         run: rm -rf build/Release dist
 
+      - name: Install Whisper.cpp
+        run: npm run install:whisper
+
       - name: Download Whisper model
         run: npm run download:model
 

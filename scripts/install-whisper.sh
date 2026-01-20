@@ -2,7 +2,7 @@
 
 set -e
 
-WHISPER_DIR="$(pwd)/native-deps/whisper"
+WHISPER_DIR="$(pwd)/native-deps/whisper.cpp"
 INSTALL_PREFIX="$WHISPER_DIR/install"
 
 echo "Installing whisper.cpp..."
@@ -31,7 +31,7 @@ cmake -DCMAKE_BUILD_TYPE=Release \
 make -j$(sysctl -n hw.ncpu)
 
 echo "whisper.cpp built successfully!"
-echo "Binary location: $WHISPER_DIR/build/main"
+echo "Binary location: $WHISPER_DIR/build/bin/whisper-cli"
 
 # Return to project root
 cd "$(dirname "$0")/.."

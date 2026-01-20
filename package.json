@@ -57,7 +57,7 @@
     ],
     "extraResources": [
       {
-        "from": "native-deps/whisper.cpp/models",
+        "from": "models",
         "to": "whisper/models"
       }
     ],
