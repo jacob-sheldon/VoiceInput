@@ -40,6 +40,7 @@
   "build": {
     "appId": "com.keyboardless.app",
     "productName": "KeyboardLess",
+    "npmRebuild": false,
     "directories": {
       "output": "release"
     },

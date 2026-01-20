@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Clean previous builds
+        run: rm -rf build/Release dist
+
       - name: Download Whisper model
         run: npm run download:model
 
