@@ -7,8 +7,8 @@ export interface RecordingConfig {
 }
 
 export interface WhisperConfig {
-  model: 'tiny' | 'base' | 'small' | 'medium' | 'large';
-  language: string;
+  model: string;  // e.g., 'medium-q8_0', 'base', 'small', etc.
+  language?: string | null;  // undefined, null, or 'auto' for auto-detection
   threads: number;
 }
 

@@ -109,7 +109,7 @@ class KeyboardLessApp {
       this.hotkeyMonitor = new HotkeyMonitor();
       this.textInjector = new TextInjector();
       this.audioRecorder = new AudioRecorder();
-      this.whisperEngine = new WhisperEngine({ model: 'base' });
+      this.whisperEngine = new WhisperEngine({ model: 'medium-q8_0', language: null });
 
       this.setupHotkeyCallbacks();
 

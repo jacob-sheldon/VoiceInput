@@ -22,7 +22,7 @@ export class WhisperEngine {
 
     this.config = {
       model: config?.model || 'small',
-      language: config?.language || 'en',
+      language: config?.language ?? null,  // null for auto-detection
       threads: config?.threads || 4
     };
 
@@ -54,18 +54,29 @@ export class WhisperEngine {
   }
 
   private getModelPath(): string {
-    // Try development path first (check if it exists)
-    const devPath = path.join(__dirname, `../../../native-deps/whisper.cpp/models/ggml-${this.config.model}.en.bin`);
-    if (fs.existsSync(devPath)) {
-      return devPath;
-    }
+    const filename = `ggml-${this.config.model}.bin`;
 
-    // Fall back to production path
+    // Check multiple possible locations
+    const possiblePaths = [
+      // Project root models directory
+      path.join(process.cwd(), 'models', filename),
+      // Development path
+      path.join(__dirname, `../../../native-deps/whisper.cpp/models/${filename}`),
+    ];
+
+    // Production path
     if (process.resourcesPath) {
-      return path.join(process.resourcesPath, `whisper/models/ggml-${this.config.model}.en.bin`);
+      possiblePaths.push(path.join(process.resourcesPath, `whisper/models/${filename}`));
     }
 
-    return devPath; // Will fail with a clear error message
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+
+    // Return first path as fallback (will produce clear error message)
+    return possiblePaths[0];
   }
 
   async startRecording(): Promise<void> {
@@ -169,11 +180,15 @@ export class WhisperEngine {
       const args = [
         '-m', modelPath,
         '-f', audioPath,
-        '-l', this.config.language,
         '-t', '4',  // threads
         '-otxt',   // output txt
         '-of', path.join(this.tempDir, 'output')
       ];
+
+      // Only add language flag if not using auto-detection
+      if (this.config.language && this.config.language !== 'auto') {
+        args.splice(2, 0, '-l', this.config.language);
+      }
 
       const process = spawn(whisperPath, args);
 
