@@ -19,7 +19,7 @@
     "download:model": "node scripts/download-model.js",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
     "dist:mac:dev": "npm run build && electron-builder --mac --arm64"
   },
   "dependencies": {
