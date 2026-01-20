@@ -55,18 +55,21 @@ export class WhisperEngine {
   private getModelPath(): string {
     const filename = `ggml-${this.config.model}.bin`;
 
-    // Check multiple possible locations
+    // In production (packaged app), check resourcesPath first
+    if (process.resourcesPath) {
+      const prodPath = path.join(process.resourcesPath, `whisper/models/${filename}`);
+      if (fs.existsSync(prodPath)) {
+        return prodPath;
+      }
+    }
+
+    // Check multiple possible locations for development
     const possiblePaths = [
-      // Project root models directory
-      path.join(process.cwd(), 'models', filename),
       // Development path
       path.join(__dirname, `../../../native-deps/whisper.cpp/models/${filename}`),
+      // Project root models directory
+      path.join(process.cwd(), 'models', filename),
     ];
-
-    // Production path
-    if (process.resourcesPath) {
-      possiblePaths.push(path.join(process.resourcesPath, `whisper/models/${filename}`));
-    }
 
     for (const p of possiblePaths) {
       if (fs.existsSync(p)) {
@@ -74,8 +77,10 @@ export class WhisperEngine {
       }
     }
 
-    // Return first path as fallback (will produce clear error message)
-    return possiblePaths[0];
+    // Return production path as fallback (will produce clear error message)
+    return process.resourcesPath
+      ? path.join(process.resourcesPath, `whisper/models/${filename}`)
+      : possiblePaths[0];
   }
 
   async startRecording(): Promise<void> {

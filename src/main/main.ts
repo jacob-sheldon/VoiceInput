@@ -283,11 +283,16 @@ class KeyboardLessApp {
             if (this.textInjector) {
               try {
                 const appInfo = await this.textInjector.getFocusedAppInfo();
+                console.log('[DEBUG] Focused app:', appInfo);
                 // Use clipboard-based injection for terminals, direct injection otherwise
                 if (appInfo.isTerminal) {
-                  await this.textInjector.injectTextViaClipboard(text);
+                  console.log('[DEBUG] Using clipboard-based injection for terminal');
+                  const result = await this.textInjector.injectTextViaClipboard(text);
+                  console.log('[DEBUG] Clipboard injection result:', result);
                 } else {
-                  await this.textInjector.injectText(text);
+                  console.log('[DEBUG] Using direct injection');
+                  const result = await this.textInjector.injectText(text);
+                  console.log('[DEBUG] Direct injection result:', result);
                 }
               } catch (error) {
                 console.error('[ERROR] Text injection failed:', error);
