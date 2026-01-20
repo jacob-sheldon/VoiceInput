@@ -2,6 +2,8 @@
 
 set -e
 
+# Save the original directory
+ORIGINAL_DIR="$(pwd)"
 WHISPER_DIR="$(pwd)/native-deps/whisper.cpp"
 INSTALL_PREFIX="$WHISPER_DIR/install"
 
@@ -34,4 +36,4 @@ echo "whisper.cpp built successfully!"
 echo "Binary location: $WHISPER_DIR/build/bin/whisper-cli"
 
 # Return to project root
-cd "$(dirname "$0")/.."
+cd "$ORIGINAL_DIR"
