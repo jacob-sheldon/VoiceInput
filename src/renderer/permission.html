@@ -28,8 +28,18 @@
 
     .title-bar {
       -webkit-app-region: drag;
-      padding: 8px 16px;
+      padding: 12px 16px;
       cursor: move;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .drag-handle {
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 16px;
+      letter-spacing: 2px;
+      -webkit-app-region: drag;
     }
 
     .icon {
@@ -168,7 +178,9 @@
   </style>
 </head>
 <body>
-  <div class="title-bar"></div>
+  <div class="title-bar">
+    <div class="drag-handle">⋮⋮</div>
+  </div>
   <div class="container">
     <div class="icon">⚠️</div>
     <h1 class="title">Accessibility Permission Required</h1>
