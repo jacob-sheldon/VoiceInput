@@ -49,11 +49,19 @@
       "assets/**/*",
       "node_modules/**/*",
       "build/Release/*.node",
-      "native-deps/whisper.cpp/build/bin/*"
+      "native-deps/whisper.cpp/build/bin/*",
+      "native-deps/whisper.cpp/build/src/*.dylib",
+      "native-deps/whisper.cpp/build/ggml/src/*.dylib",
+      "native-deps/whisper.cpp/build/ggml/src/ggml-blas/*.dylib",
+      "native-deps/whisper.cpp/build/ggml/src/ggml-metal/*.dylib"
     ],
     "asarUnpack": [
       "build/Release/*.node",
-      "native-deps/whisper.cpp/build/bin/*"
+      "native-deps/whisper.cpp/build/bin/*",
+      "native-deps/whisper.cpp/build/src/*.dylib",
+      "native-deps/whisper.cpp/build/ggml/src/*.dylib",
+      "native-deps/whisper.cpp/build/ggml/src/ggml-blas/*.dylib",
+      "native-deps/whisper.cpp/build/ggml/src/ggml-metal/*.dylib"
     ],
     "extraResources": [
       {

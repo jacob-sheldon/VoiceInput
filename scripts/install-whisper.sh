@@ -28,6 +28,8 @@ cd build
 cmake -DCMAKE_BUILD_TYPE=Release \
       -DWHISPER_BUILD_TESTS=OFF \
       -DWHISPER_BUILD_EXAMPLES=ON \
+      -DCMAKE_INSTALL_RPATH="@executable_path/../src;@executable_path/../ggml/src;@executable_path/../ggml/src/ggml-blas;@executable_path/../ggml/src/ggml-metal" \
+      -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
       ..
 
 make -j$(sysctl -n hw.ncpu)
