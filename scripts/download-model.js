@@ -8,9 +8,20 @@ const baseUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main';
 
 const models = {
   tiny: 'ggml-tiny.bin',
+  tiny_en: 'ggml-tiny.en.bin',
+  base: 'ggml-base.bin',
+  base_en: 'ggml-base.en.bin',
   small: 'ggml-small.bin',
+  small_en: 'ggml-small.en.bin',
   medium: 'ggml-medium.bin',
-  large: 'ggml-large-v3.bin'
+  medium_en: 'ggml-medium.en.bin',
+  'medium-q5_0': 'ggml-medium-q5_0.bin',
+  'medium-q8_0': 'ggml-medium-q8_0.bin',
+  large: 'ggml-large-v1.bin',
+  large_v1: 'ggml-large-v1.bin',
+  large_v2: 'ggml-large-v2.bin',
+  'large-v3': 'ggml-large-v3.bin',
+  large_v3: 'ggml-large-v3.bin'
 };
 
 function ensureDir(dir) {
