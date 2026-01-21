@@ -88,6 +88,11 @@ export class WhisperEngine {
       throw new Error('Already recording');
     }
 
+    // Ensure temp directory exists
+    if (!fs.existsSync(this.tempDir)) {
+      fs.mkdirSync(this.tempDir, { recursive: true });
+    }
+
     this.audioFilePath = path.join(this.tempDir, `recording_${Date.now()}.wav`);
 
     // Use ffmpeg or sox for recording
@@ -227,6 +232,11 @@ export class WhisperEngine {
   async transcribeAudioData(audioData: AudioBuffer): Promise<string> {
     if (audioData.length === 0) {
       throw new Error('Audio data is empty');
+    }
+
+    // Ensure temp directory exists
+    if (!fs.existsSync(this.tempDir)) {
+      fs.mkdirSync(this.tempDir, { recursive: true });
     }
 
     // Save audio data to a temporary file
