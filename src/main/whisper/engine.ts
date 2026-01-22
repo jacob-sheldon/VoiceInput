@@ -21,7 +21,7 @@ export class WhisperEngine {
     }
 
     this.config = {
-      model: config?.model || 'small',
+      model: config?.model || 'base',
       language: config?.language ?? null,  // null for auto-detection
       threads: config?.threads || 4
     };

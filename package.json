@@ -47,7 +47,6 @@
     "files": [
       "dist/**/*",
       "assets/**/*",
-      "node_modules/**/*",
       "build/Release/*.node",
       "native-deps/whisper.cpp/build/bin/*",
       "native-deps/whisper.cpp/build/src/*.dylib",
