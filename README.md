@@ -56,17 +56,20 @@ npm run install:whisper
 
 ### 4. Download Whisper Model
 
-Download at least one model (base is recommended for speed/accuracy balance):
+Download at least one model (base is recommended for speed/accuracy balance). Models are stored under your app data directory (macOS: `~/Library/Application Support/KeyboardLess/models`):
 
 ```bash
 # Base model (recommended - ~140MB)
 npm run download:model base
 
-# Tiny model (faster, less accurate - ~70MB)
-npm run download:model tiny
-
 # Small model (slower, more accurate - ~460MB)
 npm run download:model small
+
+# Medium model (higher accuracy - ~1.4GB)
+npm run download:model medium
+
+# Large v3 model (best accuracy - ~2.9GB)
+npm run download:model large-v3
 ```
 
 ### 5. Build & Run
@@ -293,7 +296,7 @@ Edit `src/main/main.ts` to configure Whisper:
 
 ```typescript
 this.whisperEngine = new WhisperEngine({
-  model: 'base',     // 'tiny' | 'base' | 'small' | 'medium' | 'large'
+  model: 'base',     // 'base' | 'small' | 'medium' | 'large-v3'
   language: 'en',    // Language code (auto-detect if not specified)
   threads: 4         // Number of CPU threads for transcription
 });
@@ -303,11 +306,10 @@ this.whisperEngine = new WhisperEngine({
 
 | Model | Size | Speed | Accuracy |
 |-------|------|-------|----------|
-| tiny | 70MB | ⚡⚡⚡ | Good |
 | base | 140MB | ⚡⚡ | Very Good |
 | small | 460MB | ⚡ | Excellent |
 | medium | 1.4GB | ~ | Outstanding |
-| large | 2.8GB | ~ | Best |
+| large-v3 | 2.9GB | ~ | Best |
 
 ## License
 
