@@ -147,6 +147,11 @@
       box-shadow: 0 18px 36px rgba(59, 212, 197, 0.18);
     }
 
+    .model-card.active {
+      border-color: rgba(59, 212, 197, 0.75);
+      box-shadow: 0 20px 38px rgba(59, 212, 197, 0.26);
+    }
+
     .model-title {
       display: flex;
       align-items: center;
@@ -181,6 +186,11 @@
       color: var(--muted);
     }
 
+    .model-badge.active {
+      background: rgba(59, 212, 197, 0.22);
+      color: var(--accent);
+    }
+
     .model-meta {
       color: var(--muted);
       font-size: 13px;
@@ -192,6 +202,12 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+    }
+
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .size {
@@ -222,6 +238,16 @@
     .action-btn.delete {
       background: rgba(255, 107, 107, 0.18);
       color: var(--danger);
+    }
+
+    .action-btn.select {
+      background: rgba(59, 212, 197, 0.12);
+      color: var(--accent);
+    }
+
+    .action-btn.select.active {
+      background: var(--accent);
+      color: #002a26;
     }
 
     .action-btn.delete:hover {
@@ -341,7 +367,7 @@
       <div class="hero">
         <div class="hero-text">
           <h2>Local Model Library</h2>
-          <p>Download a Whisper model and keep it on your Mac. KeyboardLess will automatically use the best model you’ve installed for transcription.</p>
+          <p>Download a Whisper model and keep it on your Mac. Choose which installed model KeyboardLess should use for transcription.</p>
         </div>
         <div class="status-pill warning" id="statusPill">No model installed</div>
       </div>

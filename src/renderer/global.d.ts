@@ -15,6 +15,8 @@ declare global {
       closePermissionWindow: () => Promise<void>;
       listModels: () => Promise<any[]>;
       getBestModelId: () => Promise<string | null>;
+      getActiveModelId: () => Promise<string | null>;
+      setActiveModelId: (modelId: string | null) => Promise<string | null>;
       getModelDirectories: () => Promise<{ primary: string; legacy: string | null }>;
       downloadModel: (modelId: string) => Promise<void>;
       deleteModel: (modelId: string) => Promise<void>;

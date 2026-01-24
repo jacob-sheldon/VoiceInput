@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Model management methods
   listModels: () => ipcRenderer.invoke('models:list'),
   getBestModelId: () => ipcRenderer.invoke('models:best'),
+  getActiveModelId: () => ipcRenderer.invoke('models:active'),
+  setActiveModelId: (modelId: string | null) => ipcRenderer.invoke('models:set-active', modelId),
   getModelDirectories: () => ipcRenderer.invoke('models:dirs'),
   downloadModel: (modelId: string) => ipcRenderer.invoke('models:download', modelId),
   deleteModel: (modelId: string) => ipcRenderer.invoke('models:delete', modelId),

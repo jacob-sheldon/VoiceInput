@@ -27,6 +27,7 @@ type DownloadProgress = {
 
   let cachedModels: ModelState[] = [];
   let bestModelId: string | null = null;
+  let activeModelId: string | null = null;
   const downloads = new Map<string, DownloadProgress>();
 
   const formatBytes = (bytes: number): string => {
@@ -55,14 +56,20 @@ type DownloadProgress = {
   };
 
   const updateStatus = (): void => {
+    if (activeModelId) {
+      const active = cachedModels.find((model) => model.id === activeModelId);
+      statusPill.textContent = active ? `Active model: ${active.label}` : 'Active model selected';
+      statusPill.classList.remove('warning');
+      return;
+    }
     if (bestModelId) {
       const best = cachedModels.find((model) => model.id === bestModelId);
-      statusPill.textContent = best ? `Best installed: ${best.label}` : 'Best model installed';
+      statusPill.textContent = best ? `Auto-selected: ${best.label}` : 'Best model installed';
       statusPill.classList.remove('warning');
-    } else {
-      statusPill.textContent = 'No model installed';
-      statusPill.classList.add('warning');
+      return;
     }
+    statusPill.textContent = 'No model installed';
+    statusPill.classList.add('warning');
   };
 
   const render = (): void => {
@@ -79,6 +86,10 @@ type DownloadProgress = {
 
       if (bestModelId === model.id) {
         card.classList.add('best');
+      }
+
+      if (activeModelId === model.id) {
+        card.classList.add('active');
       }
 
       const title = document.createElement('div');
@@ -102,8 +113,28 @@ type DownloadProgress = {
       size.className = 'size';
       size.textContent = formatSize(model);
 
+      const actionGroup = document.createElement('div');
+      actionGroup.className = 'action-group';
+
+      if (model.installed) {
+        const selectBtn = document.createElement('button');
+        selectBtn.className = 'action-btn select';
+        selectBtn.textContent = activeModelId === model.id ? 'Active' : 'Use';
+        selectBtn.addEventListener('click', async () => {
+          if (activeModelId === model.id) return;
+          try {
+            await window.electronAPI.setActiveModelId(model.id);
+            showToast(`${model.label} is now active`);
+            await refresh();
+          } catch (error: any) {
+            showToast(error?.message || 'Failed to switch model');
+          }
+        });
+        actionGroup.appendChild(selectBtn);
+      }
+
       const actionBtn = document.createElement('button');
-      actionBtn.className = `action-btn ${model.installed ? 'delete' : 'download'}`;
+      actionBtn.className = `action-btn main ${model.installed ? 'delete' : 'download'}`;
       actionBtn.textContent = model.installed ? 'Delete' : 'Download';
 
       actionBtn.addEventListener('click', async () => {
@@ -133,8 +164,9 @@ type DownloadProgress = {
         });
       });
 
+      actionGroup.appendChild(actionBtn);
       footer.appendChild(size);
-      footer.appendChild(actionBtn);
+      footer.appendChild(actionGroup);
 
       card.appendChild(title);
       card.appendChild(meta);
@@ -164,6 +196,7 @@ type DownloadProgress = {
   const refresh = async (): Promise<void> => {
     cachedModels = await window.electronAPI.listModels();
     bestModelId = await window.electronAPI.getBestModelId();
+    activeModelId = await window.electronAPI.getActiveModelId();
     const dirs = await window.electronAPI.getModelDirectories();
     storagePath.textContent = dirs.legacy
       ? `Scanning: ${dirs.primary} (primary), ${dirs.legacy} (legacy)`
@@ -188,7 +221,14 @@ type DownloadProgress = {
       card.classList.remove('best');
     }
 
-    const actionBtn = card.querySelector('.action-btn') as HTMLButtonElement | null;
+    if (activeModelId === model.id) {
+      card.classList.add('active');
+    } else {
+      card.classList.remove('active');
+    }
+
+    const actionBtn = card.querySelector('.action-btn.main') as HTMLButtonElement | null;
+    const selectBtn = card.querySelector('.action-btn.select') as HTMLButtonElement | null;
     const progressWrap = card.querySelector('.progress') as HTMLElement | null;
     const progressBar = card.querySelector('.progress-bar') as HTMLElement | null;
     const progressText = card.querySelector('.progress-text') as HTMLElement | null;
@@ -202,6 +242,12 @@ type DownloadProgress = {
         bestBadge.textContent = 'Best';
         badgeWrap.appendChild(bestBadge);
       }
+      if (activeModelId === model.id) {
+        const activeBadge = document.createElement('span');
+        activeBadge.className = 'model-badge active';
+        activeBadge.textContent = 'Active';
+        badgeWrap.appendChild(activeBadge);
+      }
       if (model.installed) {
         const installedBadge = document.createElement('span');
         installedBadge.className = 'model-badge installed';
@@ -211,6 +257,12 @@ type DownloadProgress = {
     }
 
     const progress = downloads.get(modelId);
+    if (selectBtn) {
+      const isActive = activeModelId === model.id;
+      selectBtn.textContent = isActive ? 'Active' : 'Use';
+      selectBtn.disabled = isActive || Boolean(progress);
+      selectBtn.classList.toggle('active', isActive);
+    }
     if (actionBtn) {
       if (progress) {
         const percent = progress.percent ? Math.min(100, Math.floor(progress.percent * 100)) : null;

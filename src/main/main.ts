@@ -4,6 +4,7 @@ import * as path from 'path';
 import { EventEmitter } from 'events';
 import { WhisperEngine } from './whisper/engine';
 import { ModelManager } from './whisper/model-manager';
+import { getModelSpec, resolveModelPath } from './whisper/models';
 import { AppState } from './types';
 import * as fs from 'fs';
 const util = require('util');
@@ -74,6 +75,8 @@ class KeyboardLessApp {
   private whisperEngine: WhisperEngine | null = null;
   private modelManager: ModelManager;
   private activeModelId: string | null = null;
+  private selectedModelId: string | null = null;
+  private modelPreferencePath: string | null = null;
   private currentState: AppState = 'idle';
   private hasAccessibilityPermission: boolean = false;
 
@@ -90,6 +93,7 @@ class KeyboardLessApp {
 
   private setupElectronApp(): void {
     app.whenReady().then(() => {
+      this.loadModelPreference();
       this.createTray();
       this.createStatusWindow();
       this.initializeNativeModules();
@@ -416,8 +420,14 @@ class KeyboardLessApp {
   private updateTrayMenu(): void {
     if (!this.tray) return;
 
+    const selectedModelId = this.getSelectedModelId();
     const bestModelId = this.modelManager.getBestModelId();
-    const modelLabel = bestModelId ? `Model: ${bestModelId}` : 'Model: None (Download...)';
+    const effectiveModelId = selectedModelId ?? bestModelId;
+    const spec = effectiveModelId ? getModelSpec(effectiveModelId) : null;
+    const label = spec?.label ?? effectiveModelId;
+    const modelLabel = effectiveModelId
+      ? `Model: ${label}${selectedModelId ? '' : ' (auto)'}`
+      : 'Model: None (Download...)';
     const statusLabels = {
       idle: 'Status: Idle',
       listening: 'Status: Listening...',
@@ -587,6 +597,15 @@ class KeyboardLessApp {
       return this.modelManager.getBestModelId();
     });
 
+    ipcMain.handle('models:active', () => {
+      return this.getSelectedModelId();
+    });
+
+    ipcMain.handle('models:set-active', (_event, modelId: string | null) => {
+      this.setSelectedModelId(modelId);
+      return this.getSelectedModelId();
+    });
+
     ipcMain.handle('models:dirs', () => {
       return this.modelManager.getModelDirectories();
     });
@@ -614,7 +633,14 @@ class KeyboardLessApp {
 
     ipcMain.handle('models:delete', (_event, modelId: string) => {
       this.modelManager.deleteModel(modelId);
-      this.refreshWhisperEngine();
+      let refreshed = false;
+      if (this.selectedModelId === modelId) {
+        this.setSelectedModelId(null);
+        refreshed = true;
+      }
+      if (!refreshed) {
+        this.refreshWhisperEngine();
+      }
     });
 
     ipcMain.handle('models:open-window', () => {
@@ -623,8 +649,10 @@ class KeyboardLessApp {
   }
 
   private refreshWhisperEngine(): void {
+    const selectedModelId = this.getSelectedModelId();
     const bestModelId = this.modelManager.getBestModelId();
-    if (!bestModelId) {
+    const effectiveModelId = selectedModelId ?? bestModelId;
+    if (!effectiveModelId) {
       if (this.whisperEngine) {
         this.whisperEngine.cleanup();
       }
@@ -634,15 +662,74 @@ class KeyboardLessApp {
       return;
     }
 
-    if (this.activeModelId !== bestModelId) {
+    if (this.activeModelId !== effectiveModelId) {
       if (this.whisperEngine) {
         this.whisperEngine.cleanup();
       }
-      this.whisperEngine = new WhisperEngine({ model: bestModelId, language: null });
-      this.activeModelId = bestModelId;
+      this.whisperEngine = new WhisperEngine({ model: effectiveModelId, language: null });
+      this.activeModelId = effectiveModelId;
     }
 
     this.updateTrayMenu();
+  }
+
+  private getSelectedModelId(): string | null {
+    if (!this.selectedModelId) {
+      return null;
+    }
+    if (!resolveModelPath(this.selectedModelId)) {
+      this.selectedModelId = null;
+      this.persistModelPreference();
+      return null;
+    }
+    return this.selectedModelId;
+  }
+
+  private setSelectedModelId(modelId: string | null): void {
+    if (modelId) {
+      if (!resolveModelPath(modelId)) {
+        throw new Error('Model is not installed');
+      }
+      this.selectedModelId = modelId;
+    } else {
+      this.selectedModelId = null;
+    }
+    this.persistModelPreference();
+    this.refreshWhisperEngine();
+  }
+
+  private loadModelPreference(): void {
+    try {
+      this.modelPreferencePath = path.join(app.getPath('userData'), 'model-preference.json');
+      if (!fs.existsSync(this.modelPreferencePath)) {
+        return;
+      }
+      const raw = fs.readFileSync(this.modelPreferencePath, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.modelId === 'string') {
+        this.selectedModelId = parsed.modelId;
+      }
+    } catch (error) {
+      console.warn('[model] failed to load preference', error);
+      this.selectedModelId = null;
+    }
+  }
+
+  private persistModelPreference(): void {
+    if (!this.modelPreferencePath) {
+      return;
+    }
+    try {
+      if (!this.selectedModelId) {
+        if (fs.existsSync(this.modelPreferencePath)) {
+          fs.unlinkSync(this.modelPreferencePath);
+        }
+        return;
+      }
+      fs.writeFileSync(this.modelPreferencePath, JSON.stringify({ modelId: this.selectedModelId }));
+    } catch (error) {
+      console.warn('[model] failed to persist preference', error);
+    }
   }
 
   private ensureModelReady(): boolean {
