@@ -3,23 +3,35 @@ const path = require('path');
 const https = require('https');
 const { execSync } = require('child_process');
 
-const modelsDir = path.join(__dirname, '../models');
+function getModelsDir() {
+  if (process.env.KEYBOARDLESS_MODELS_DIR) {
+    return process.env.KEYBOARDLESS_MODELS_DIR;
+  }
+
+  if (process.platform === 'darwin') {
+    const home = process.env.HOME || process.env.USERPROFILE;
+    if (home) {
+      return path.join(home, 'Library', 'Application Support', 'KeyboardLess', 'models');
+    }
+  }
+
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA || process.env.LOCALAPPDATA;
+    if (appData) {
+      return path.join(appData, 'KeyboardLess', 'models');
+    }
+  }
+
+  return path.join(__dirname, '../models');
+}
+
+const modelsDir = getModelsDir();
 const baseUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main';
 
 const models = {
-  tiny: 'ggml-tiny.bin',
-  tiny_en: 'ggml-tiny.en.bin',
   base: 'ggml-base.bin',
-  base_en: 'ggml-base.en.bin',
   small: 'ggml-small.bin',
-  small_en: 'ggml-small.en.bin',
   medium: 'ggml-medium.bin',
-  medium_en: 'ggml-medium.en.bin',
-  'medium-q5_0': 'ggml-medium-q5_0.bin',
-  'medium-q8_0': 'ggml-medium-q8_0.bin',
-  large: 'ggml-large-v1.bin',
-  large_v1: 'ggml-large-v1.bin',
-  large_v2: 'ggml-large-v2.bin',
   'large-v3': 'ggml-large-v3.bin',
   large_v3: 'ggml-large-v3.bin'
 };

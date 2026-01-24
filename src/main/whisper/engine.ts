@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import { WhisperConfig, TranscriptionResult } from '../types';
+import { resolveModelPath, getModelsDir } from './models';
 
 // Add Buffer type support
 type AudioBuffer = Buffer | Uint8Array;
@@ -53,34 +54,28 @@ export class WhisperEngine {
   }
 
   private getModelPath(): string {
-    const filename = `ggml-${this.config.model}.bin`;
-
-    // In production (packaged app), check resourcesPath first
-    if (process.resourcesPath) {
-      const prodPath = path.join(process.resourcesPath, `whisper/models/${filename}`);
-      if (fs.existsSync(prodPath)) {
-        return prodPath;
-      }
+    const resolved = resolveModelPath(this.config.model);
+    if (resolved) {
+      return resolved;
     }
 
-    // Check multiple possible locations for development
+    const filename = `ggml-${this.config.model}.bin`;
+    const modelsDir = getModelsDir();
+
     const possiblePaths = [
-      // Development path
-      path.join(__dirname, `../../../native-deps/whisper.cpp/models/${filename}`),
-      // Project root models directory
+      path.join(modelsDir, filename),
+      // Legacy development path (optional)
       path.join(process.cwd(), 'models', filename),
+      path.join(__dirname, `../../../native-deps/whisper.cpp/models/${filename}`)
     ];
 
-    for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        return p;
+    for (const candidate of possiblePaths) {
+      if (fs.existsSync(candidate)) {
+        return candidate;
       }
     }
 
-    // Return production path as fallback (will produce clear error message)
-    return process.resourcesPath
-      ? path.join(process.resourcesPath, `whisper/models/${filename}`)
-      : possiblePaths[0];
+    return path.join(modelsDir, filename);
   }
 
   async startRecording(): Promise<void> {
