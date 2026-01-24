@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Models - KeyboardLess</title>
+  <style>
+    :root {
+      --bg: #0c1118;
+      --bg-elev: #131a24;
+      --bg-soft: #182232;
+      --text: #eef3fb;
+      --muted: #9fb1c8;
+      --accent: #3bd4c5;
+      --accent-2: #ffb347;
+      --danger: #ff6b6b;
+      --border: rgba(255, 255, 255, 0.08);
+      --glow: rgba(59, 212, 197, 0.35);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Avenir Next', 'Avenir', 'Helvetica Neue', sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(59, 212, 197, 0.16), transparent 60%),
+                  radial-gradient(900px 520px at 90% 10%, rgba(255, 179, 71, 0.12), transparent 55%),
+                  var(--bg);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .window {
+      position: relative;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, rgba(19, 26, 36, 0.92), rgba(12, 17, 24, 0.98));
+    }
+
+    .title-bar {
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      -webkit-app-region: drag;
+    }
+
+    .title-bar h1 {
+      font-size: 16px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .close-btn {
+      -webkit-app-region: no-drag;
+      border: 0;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 18px;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      transform: scale(1.05);
+    }
+
+    .content {
+      padding: 22px 24px 16px;
+      overflow: hidden;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .hero-text h2 {
+      font-size: 26px;
+      margin-bottom: 6px;
+    }
+
+    .hero-text p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 420px;
+    }
+
+    .status-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(59, 212, 197, 0.12);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      min-width: 170px;
+    }
+
+    .status-pill.warning {
+      background: rgba(255, 179, 71, 0.12);
+      color: var(--accent-2);
+    }
+
+    .model-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 6px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .model-card {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      box-shadow: 0 18px 32px rgba(0, 0, 0, 0.3);
+      animation: cardIn 0.5s ease both;
+    }
+
+    .model-card.best {
+      border-color: rgba(59, 212, 197, 0.5);
+      box-shadow: 0 18px 36px rgba(59, 212, 197, 0.18);
+    }
+
+    .model-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .model-title h3 {
+      font-size: 18px;
+    }
+
+    .model-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .model-badge {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .model-badge.best {
+      background: rgba(59, 212, 197, 0.16);
+      color: var(--accent);
+    }
+
+    .model-badge.installed {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+    }
+
+    .model-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .model-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .size {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .action-btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .action-btn.download {
+      background: var(--accent);
+      color: #002a26;
+    }
+
+    .action-btn.download:hover {
+      transform: translateY(-1px);
+    }
+
+    .action-btn.delete {
+      background: rgba(255, 107, 107, 0.18);
+      color: var(--danger);
+    }
+
+    .action-btn.delete:hover {
+      transform: translateY(-1px);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+      transform: none;
+    }
+
+    .progress {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      width: 0%;
+      transition: width 0.2s ease;
+    }
+
+    .progress-bar.indeterminate {
+      width: 40%;
+      animation: indeterminate 1.2s ease-in-out infinite;
+    }
+
+    .progress-text {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: -4px;
+    }
+
+    @keyframes indeterminate {
+      0% {
+        transform: translateX(-20%);
+      }
+      50% {
+        transform: translateX(40%);
+      }
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    .footer {
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .refresh-btn {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .toast {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(19, 26, 36, 0.9);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @keyframes cardIn {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="title-bar">
+      <h1>KeyboardLess Models</h1>
+      <button class="close-btn" id="closeBtn">×</button>
+    </div>
+    <div class="content">
+      <div class="hero">
+        <div class="hero-text">
+          <h2>Local Model Library</h2>
+          <p>Download a Whisper model and keep it on your Mac. KeyboardLess will automatically use the best model you’ve installed for transcription.</p>
+        </div>
+        <div class="status-pill warning" id="statusPill">No model installed</div>
+      </div>
+
+      <div class="model-grid" id="modelList"></div>
+
+      <div class="footer">
+        <span id="storagePath">Scanning: …</span>
+        <button class="refresh-btn" id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script src="./models.js"></script>
+</body>
+</html>

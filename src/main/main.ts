@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, globalShortcut, Menu, Tray, nativeImage, NativeImage, screen } from 'electron';
+import type { WebContents } from 'electron';
 import * as path from 'path';
 import { EventEmitter } from 'events';
 import { WhisperEngine } from './whisper/engine';
+import { ModelManager } from './whisper/model-manager';
 import { AppState } from './types';
 import * as fs from 'fs';
 const util = require('util');
@@ -64,10 +66,14 @@ class KeyboardLessApp {
   private tray: Tray | null = null;
   private statusWindow: BrowserWindow | null = null;
   private permissionWindow: BrowserWindow | null = null;
+  private modelsWindow: BrowserWindow | null = null;
+  private modelPromptWindow: BrowserWindow | null = null;
   private hotkeyMonitor: any = null;
   private textInjector: any = null;
   private audioRecorder: any = null;
   private whisperEngine: WhisperEngine | null = null;
+  private modelManager: ModelManager;
+  private activeModelId: string | null = null;
   private currentState: AppState = 'idle';
   private hasAccessibilityPermission: boolean = false;
 
@@ -77,6 +83,7 @@ class KeyboardLessApp {
   private readonly DOUBLE_PRESS_WINDOW_MS = 400;
 
   constructor() {
+    this.modelManager = new ModelManager();
     this.setupElectronApp();
     this.setupIPC();
   }
@@ -107,7 +114,8 @@ class KeyboardLessApp {
     this.tray = new Tray(trayIcon.isEmpty() ? this.createDefaultIcon() : trayIcon);
 
     const contextMenu = Menu.buildFromTemplate([
-      { label: 'Status: Idle', click: () => this.showStatusWindow() },
+      { label: 'Status: Idle', enabled: false },
+      { label: 'Models...', click: () => this.showModelsWindow() },
       { type: 'separator' },
       { label: 'Enable Hotkey', click: () => this.enableHotkeyMonitor() },
       { label: 'Quit', click: () => app.quit() }
@@ -156,12 +164,86 @@ class KeyboardLessApp {
     this.statusWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
 
+  private createModelPromptWindow(x?: number, y?: number): void {
+    if (this.modelPromptWindow) {
+      this.modelPromptWindow.focus();
+      return;
+    }
+
+    const windowOptions: any = {
+      width: 420,
+      height: 180,
+      show: false,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      resizable: false,
+      focusable: true,
+      backgroundColor: '#1c1c1e',
+      webPreferences: {
+        preload: path.join(__dirname, '../preload/preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    };
+
+    if (x !== undefined && y !== undefined) {
+      windowOptions.x = x;
+      windowOptions.y = y;
+    }
+
+    this.modelPromptWindow = new BrowserWindow(windowOptions);
+    this.modelPromptWindow.loadFile(path.join(__dirname, '../renderer/models_prompt.html'));
+
+    this.modelPromptWindow.on('closed', () => {
+      this.modelPromptWindow = null;
+    });
+  }
+
+  private createModelsWindow(): void {
+    if (this.modelsWindow) {
+      this.modelsWindow.focus();
+      return;
+    }
+
+    this.modelsWindow = new BrowserWindow({
+      width: 560,
+      height: 680,
+      show: false,
+      frame: false,
+      transparent: false,
+      backgroundColor: '#0c1118',
+      resizable: true,
+      center: true,
+      webPreferences: {
+        preload: path.join(__dirname, '../preload/preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    });
+
+    this.modelsWindow.loadFile(path.join(__dirname, '../renderer/models.html'));
+
+    this.modelsWindow.on('closed', () => {
+      this.modelsWindow = null;
+    });
+  }
+
+  private showModelsWindow(): void {
+    this.createModelsWindow();
+    if (this.modelsWindow) {
+      this.modelsWindow.show();
+      this.modelsWindow.focus();
+    }
+  }
+
   private initializeNativeModules(): void {
     try {
       this.hotkeyMonitor = new HotkeyMonitor();
       this.textInjector = new TextInjector();
       this.audioRecorder = new AudioRecorder();
-      this.whisperEngine = new WhisperEngine({ model: 'base', language: null });
+      this.refreshWhisperEngine();
 
       this.setupHotkeyCallbacks();
 
@@ -207,6 +289,10 @@ class KeyboardLessApp {
 
   private async handleCommandDown(): Promise<void> {
     if (this.currentState !== 'idle') return;
+
+    if (!this.ensureModelReady()) {
+      return;
+    }
 
     this.setState('listening');
     this.showStatusWindow();
@@ -330,6 +416,8 @@ class KeyboardLessApp {
   private updateTrayMenu(): void {
     if (!this.tray) return;
 
+    const bestModelId = this.modelManager.getBestModelId();
+    const modelLabel = bestModelId ? `Model: ${bestModelId}` : 'Model: None (Download...)';
     const statusLabels = {
       idle: 'Status: Idle',
       listening: 'Status: Listening...',
@@ -338,7 +426,8 @@ class KeyboardLessApp {
     };
 
     const contextMenu = Menu.buildFromTemplate([
-      { label: statusLabels[this.currentState], click: () => this.showStatusWindow() },
+      { label: statusLabels[this.currentState], enabled: false },
+      { label: modelLabel, click: () => this.showModelsWindow() },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() }
     ]);
@@ -347,6 +436,37 @@ class KeyboardLessApp {
   }
 
   private showStatusWindow(): void {
+    const position = this.getBottomCenterPosition(200, 60);
+
+    // Destroy existing window and recreate with correct position
+    if (this.statusWindow) {
+      this.statusWindow.destroy();
+    }
+
+    this.createStatusWindow(position.x, position.y);
+
+    // Wait for window to be ready, then show
+    if (this.statusWindow) {
+      this.statusWindow.once('ready-to-show', () => {
+        this.statusWindow?.showInactive();
+      });
+    }
+  }
+
+  private showModelPromptWindow(): void {
+    const position = this.getBottomCenterPosition(420, 180);
+    this.createModelPromptWindow(position.x, position.y);
+
+    if (this.modelPromptWindow) {
+      this.modelPromptWindow.once('ready-to-show', () => {
+        this.modelPromptWindow?.show();
+      });
+      this.modelPromptWindow.show();
+      this.modelPromptWindow.focus();
+    }
+  }
+
+  private getBottomCenterPosition(width: number, height: number): { x: number; y: number } {
     let workArea;
 
     // Try to get the display where the focused window is
@@ -361,27 +481,13 @@ class KeyboardLessApp {
       workArea = display.workArea;
     }
 
-    // Center horizontally: (screen width - window width) / 2
-    const x = (workArea.width - 200) / 2;
-    // Position near bottom: screen height - window height - padding
-    const y = workArea.height - 60 - 20; // 20px padding from bottom
+    const x = (workArea.width - width) / 2;
+    const y = workArea.height - height - 20; // 20px padding from bottom
 
-    const finalX = Math.floor(x + workArea.x);
-    const finalY = Math.floor(y + workArea.y);
-
-    // Destroy existing window and recreate with correct position
-    if (this.statusWindow) {
-      this.statusWindow.destroy();
-    }
-
-    this.createStatusWindow(finalX, finalY);
-
-    // Wait for window to be ready, then show
-    if (this.statusWindow) {
-      this.statusWindow.once('ready-to-show', () => {
-        this.statusWindow?.showInactive();
-      });
-    }
+    return {
+      x: Math.floor(x + workArea.x),
+      y: Math.floor(y + workArea.y)
+    };
   }
 
   private hideStatusWindow(): void {
@@ -472,6 +578,103 @@ class KeyboardLessApp {
     ipcMain.handle('close-permission-window', () => {
       this.closePermissionWindow();
     });
+
+    ipcMain.handle('models:list', () => {
+      return this.modelManager.listModels();
+    });
+
+    ipcMain.handle('models:best', () => {
+      return this.modelManager.getBestModelId();
+    });
+
+    ipcMain.handle('models:dirs', () => {
+      return this.modelManager.getModelDirectories();
+    });
+
+    ipcMain.handle('models:download', async (event, modelId: string) => {
+      const fallbackSender = event.sender;
+      try {
+        await this.modelManager.downloadModel(modelId, (progress) => {
+          this.sendModelsEvent('models:download-progress', progress, fallbackSender);
+        });
+        this.sendModelsEvent('models:download-complete', { modelId }, fallbackSender);
+        this.refreshWhisperEngine();
+      } catch (error: any) {
+        this.sendModelsEvent(
+          'models:download-error',
+          {
+          modelId,
+          message: error?.message || 'Download failed'
+          },
+          fallbackSender
+        );
+        throw error;
+      }
+    });
+
+    ipcMain.handle('models:delete', (_event, modelId: string) => {
+      this.modelManager.deleteModel(modelId);
+      this.refreshWhisperEngine();
+    });
+
+    ipcMain.handle('models:open-window', () => {
+      this.showModelsWindow();
+    });
+  }
+
+  private refreshWhisperEngine(): void {
+    const bestModelId = this.modelManager.getBestModelId();
+    if (!bestModelId) {
+      if (this.whisperEngine) {
+        this.whisperEngine.cleanup();
+      }
+      this.whisperEngine = null;
+      this.activeModelId = null;
+      this.updateTrayMenu();
+      return;
+    }
+
+    if (this.activeModelId !== bestModelId) {
+      if (this.whisperEngine) {
+        this.whisperEngine.cleanup();
+      }
+      this.whisperEngine = new WhisperEngine({ model: bestModelId, language: null });
+      this.activeModelId = bestModelId;
+    }
+
+    this.updateTrayMenu();
+  }
+
+  private ensureModelReady(): boolean {
+    this.refreshWhisperEngine();
+    if (!this.whisperEngine) {
+      this.showModelPromptWindow();
+      return false;
+    }
+    return true;
+  }
+
+  private sendModelsEvent(channel: string, payload: any, fallback?: WebContents): void {
+    const targets = new Map<number, WebContents>();
+
+    if (this.modelsWindow && !this.modelsWindow.isDestroyed()) {
+      const wc = this.modelsWindow.webContents;
+      if (!wc.isDestroyed()) {
+        targets.set(wc.id, wc);
+      }
+    }
+
+    if (fallback && !fallback.isDestroyed()) {
+      targets.set(fallback.id, fallback);
+    }
+
+    for (const wc of targets.values()) {
+      try {
+        wc.send(channel, payload);
+      } catch (error) {
+        console.warn(`[model] failed to send ${channel}`, error);
+      }
+    }
   }
 
   private cleanup(): void {
