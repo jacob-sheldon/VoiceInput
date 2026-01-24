@@ -35,9 +35,11 @@ try {
   const pkg = require('../package.json');
   const electronVersion = pkg.devDependencies.electron.replace('^', '');
 
-  // Detect system architecture
+  // Detect system architecture (allow override for CI)
   const { arch } = process;
-  const nodeGypArch = arch === 'arm64' ? 'arm64' : 'x64';
+  const envArch = process.env.TARGET_ARCH || process.env.npm_config_arch;
+  const normalizedEnvArch = envArch === 'arm64' || envArch === 'x64' ? envArch : null;
+  const nodeGypArch = normalizedEnvArch || (arch === 'arm64' ? 'arm64' : 'x64');
 
   console.log(`Building for Electron ${electronVersion} (${nodeGypArch})...`);
 

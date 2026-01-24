@@ -9,8 +9,18 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: macos-latest
+  build-mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runs-on: macos-14
+            dist_script: dist:mac:arm64
+          - arch: x64
+            runs-on: macos-13
+            dist_script: dist:mac:x64
+    runs-on: ${{ matrix.runs-on }}
 
     steps:
       - name: Checkout code
@@ -26,7 +36,7 @@ jobs:
         run: npm ci
 
       - name: Clean previous builds
-        run: rm -rf build/Release dist
+        run: rm -rf build/Release dist release
 
       - name: Install Whisper.cpp
         run: npm run install:whisper
@@ -38,21 +48,34 @@ jobs:
         run: npm run build:native
 
       - name: Build Electron app
-        run: npm run dist:mac
+        run: npm run ${{ matrix.dist_script }}
         env:
           # Needed for macOS builds on GitHub Actions
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Extract version from tag
-        id: get_version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: release/*
+          if-no-files-found: error
+
+  release:
+    needs: build-mac
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            release/*.dmg
-            release/*.zip
+            release-artifacts/**/*.dmg
+            release-artifacts/**/*.zip
           generate_release_notes: true
           fail_on_unmatched_files: true
           token: ${{ secrets.GITHUB_TOKEN }}

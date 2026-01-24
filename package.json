@@ -20,6 +20,8 @@
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:mac:arm64": "npm run build && electron-builder --mac --arm64 --publish never",
+    "dist:mac:x64": "npm run build && electron-builder --mac --x64 --publish never",
     "dist:mac:dev": "npm run build && electron-builder --mac --arm64"
   },
   "dependencies": {
@@ -65,8 +67,7 @@
     "mac": {
       "target": [
         {
-          "target": "default",
-          "arch": ["arm64", "x64"]
+          "target": "default"
         }
       ],
       "category": "public.app-category.utilities",
