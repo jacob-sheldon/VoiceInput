@@ -15,10 +15,10 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runs-on: macos-14
+            runs-on: macos-15
             dist_script: dist:mac:arm64
           - arch: x64
-            runs-on: macos-13
+            runs-on: macos-15-intel
             dist_script: dist:mac:x64
     runs-on: ${{ matrix.runs-on }}
 
