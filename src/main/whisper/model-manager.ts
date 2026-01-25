@@ -184,7 +184,7 @@ export class ModelManager {
         const code = error?.code as string | undefined;
         const statusCode = error?.statusCode as number | undefined;
         const started = Boolean(error?.downloadStarted);
-        const retryableCodes = new Set(['ETIMEDOUT', 'ENETUNREACH', 'EAI_AGAIN']);
+        const retryableCodes = new Set(['ETIMEDOUT', 'ENETUNREACH', 'EAI_AGAIN', 'ECONNREFUSED']);
         const retryableStatus = statusCode !== undefined && (statusCode === 403 || statusCode === 404 || statusCode === 429 || statusCode >= 500);
         if (!started && code && retryableCodes.has(code)) {
           console.warn(`${this.logPrefix} retrying with next source due to ${code}`);
@@ -483,7 +483,7 @@ export class ModelManager {
       request.on('error', handleError);
     });
 
-    const retryableCodes = new Set(['ETIMEDOUT', 'ENETUNREACH', 'EAI_AGAIN']);
+    const retryableCodes = new Set(['ETIMEDOUT', 'ENETUNREACH', 'EAI_AGAIN', 'ECONNREFUSED']);
     return attemptDownload(4).catch((error: any) => {
       const code = error?.code as string | undefined;
       const started = Boolean(error?.downloadStarted);
