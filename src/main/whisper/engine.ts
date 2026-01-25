@@ -211,11 +211,12 @@ export class WhisperEngine {
           const outputPath = path.join(this.tempDir, 'output.txt');
           if (fs.existsSync(outputPath)) {
             const text = fs.readFileSync(outputPath, 'utf-8').trim();
-            resolve(text);
+            resolve(this.normalizePunctuation(text));
           } else {
             // Try to parse from stdout
             const match = output.match(/\[.*?\]\s*\((.*?)\)/);
-            resolve(match ? match[1] : output);
+            const fallbackText = match ? match[1] : output;
+            resolve(this.normalizePunctuation(fallbackText));
           }
         } else {
           reject(new Error(`Whisper failed with code ${code}: ${errorOutput}`));
@@ -291,5 +292,44 @@ export class WhisperEngine {
     } catch (error) {
       console.error('Failed to clean up temp directory:', error);
     }
+  }
+
+  private normalizePunctuation(text: string): string {
+    if (!text) return text;
+    const lang = (this.config.language ?? '').toLowerCase();
+    const hasChinese = /[\u4e00-\u9fff]/.test(text);
+    const shouldNormalize = lang
+      ? (lang !== 'auto' && (lang.startsWith('zh') || lang === 'cn' || lang === 'zh-cn' || lang === 'zh-tw'))
+      : hasChinese;
+
+    if (!shouldNormalize) {
+      return text;
+    }
+
+    const map: Record<string, string> = {
+      ',': '，',
+      ';': '；',
+      ':': '：',
+      '!': '！',
+      '?': '？',
+      '.': '。'
+    };
+
+    let output = text;
+    // Replace punctuation adjacent to Chinese characters and remove extra spaces around them.
+    output = output.replace(/([\u4e00-\u9fff])\s*([,;:!?])\s*(?=[\u4e00-\u9fff])/g, (_, left, punct) => {
+      return `${left}${map[punct] ?? punct}`;
+    });
+    output = output.replace(/([\u4e00-\u9fff])\s*([,;:!?])(?=\s|$)/g, (_, left, punct) => {
+      return `${left}${map[punct] ?? punct}`;
+    });
+    output = output.replace(/([\u4e00-\u9fff])\s*([.])\s*(?=[\u4e00-\u9fff])/g, (_, left, punct) => {
+      return `${left}${map[punct] ?? punct}`;
+    });
+    output = output.replace(/([\u4e00-\u9fff])\s*([.])(?=\s|$)/g, (_, left, punct) => {
+      return `${left}${map[punct] ?? punct}`;
+    });
+
+    return output;
   }
 }
