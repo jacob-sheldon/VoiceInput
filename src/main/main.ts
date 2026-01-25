@@ -96,6 +96,7 @@ class VoixApp {
     app.whenReady().then(() => {
       this.loadModelPreference();
       this.createTray();
+      this.setDockIcon();
       this.createStatusWindow();
       this.initializeNativeModules();
       this.registerAppSwitchListener();
@@ -114,8 +115,11 @@ class VoixApp {
 
   private createTray(): void {
     // Create a simple icon for the tray
-    const iconPath = path.join(__dirname, '../../assets/icon.png');
+    const iconPath = path.join(__dirname, '../../assets/trayTemplate.png');
     const trayIcon = nativeImage.createFromPath(iconPath);
+    if (!trayIcon.isEmpty()) {
+      trayIcon.setTemplateImage(true);
+    }
     this.tray = new Tray(trayIcon.isEmpty() ? this.createDefaultIcon() : trayIcon);
 
     const contextMenu = Menu.buildFromTemplate([
@@ -128,6 +132,18 @@ class VoixApp {
 
     this.tray.setContextMenu(contextMenu);
     this.tray.setToolTip('Voix - Double-press ⌘ to speak, press ⌘ to stop');
+  }
+
+  private setDockIcon(): void {
+    if (process.platform !== 'darwin') {
+      return;
+    }
+
+    const iconPath = path.join(__dirname, '../../assets/icon_source.png');
+    const dockIcon = nativeImage.createFromPath(iconPath);
+    if (!dockIcon.isEmpty()) {
+      app.dock.setIcon(dockIcon);
+    }
   }
 
   private enableHotkeyMonitor(): void {

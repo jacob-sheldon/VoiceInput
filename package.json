@@ -42,6 +42,7 @@
   "build": {
     "appId": "com.voix.app",
     "productName": "Voix",
+    "icon": "assets/icon_source.png",
     "npmRebuild": false,
     "directories": {
       "output": "release"
@@ -71,6 +72,7 @@
         }
       ],
       "category": "public.app-category.utilities",
+      "icon": "assets/icon_source.png",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "entitlements": "entitlements.mac.plist",
