@@ -30,32 +30,32 @@ export class ModelManager {
   private activeDownloads = new Map<WhisperModelId, Promise<void>>();
   private readonly logPrefix = '[model]';
   private readonly connectTimeoutMs: number = (() => {
-    const raw = process.env.KEYBOARDLESS_MODEL_CONNECT_TIMEOUT_MS;
+    const raw = process.env.VOIX_MODEL_CONNECT_TIMEOUT_MS;
     if (!raw) return 6000;
     const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 6000;
   })();
   private readonly probeTimeoutMs: number = (() => {
-    const raw = process.env.KEYBOARDLESS_MODEL_PROBE_TIMEOUT_MS;
+    const raw = process.env.VOIX_MODEL_PROBE_TIMEOUT_MS;
     if (!raw) return 2000;
     const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 2000;
   })();
   private readonly probeMaxWaitMs: number = (() => {
-    const raw = process.env.KEYBOARDLESS_MODEL_PROBE_MAX_WAIT_MS;
+    const raw = process.env.VOIX_MODEL_PROBE_MAX_WAIT_MS;
     if (!raw) return 1200;
     const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : 1200;
   })();
   private readonly fallbackHostOrder: string[] = (() => {
-    const raw = process.env.KEYBOARDLESS_MODEL_FALLBACK_HOSTS;
+    const raw = process.env.VOIX_MODEL_FALLBACK_HOSTS;
     if (raw) {
       return raw.split(',').map((entry) => entry.trim()).filter(Boolean);
     }
     return ['hf-mirror.com', 'cas-bridge.xethub.hf.co', 'huggingface.co'];
   })();
   private readonly probeBytes: number = (() => {
-    const raw = process.env.KEYBOARDLESS_MODEL_PROBE_BYTES;
+    const raw = process.env.VOIX_MODEL_PROBE_BYTES;
     if (!raw) return 256 * 1024;
     const parsed = Number.parseInt(raw, 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 256 * 1024;
@@ -206,7 +206,7 @@ export class ModelManager {
       return urls;
     }
 
-    if (process.env.KEYBOARDLESS_MODEL_SKIP_PROBE === '1') {
+    if (process.env.VOIX_MODEL_SKIP_PROBE === '1') {
       return urls;
     }
 
@@ -312,7 +312,7 @@ export class ModelManager {
         method: 'GET',
         headers: {
           Range: `bytes=0-${this.probeBytes - 1}`,
-          'User-Agent': 'KeyboardLess'
+          'User-Agent': 'Voix'
         },
         ALPNProtocols: ['http/1.1'],
         family
@@ -404,7 +404,7 @@ export class ModelManager {
         port: urlObj.port ? parseInt(urlObj.port, 10) : undefined,
         path: `${urlObj.pathname}${urlObj.search}`,
         headers: {
-          'User-Agent': 'KeyboardLess'
+          'User-Agent': 'Voix'
         },
         ALPNProtocols: ['http/1.1'],
         family

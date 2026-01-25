@@ -1,8 +1,8 @@
-# KeyboardLess
+# Voix
 
 > A macOS voice input application - Hold Command to speak, release to type.
 
-KeyboardLess is a menu bar application that transcribes your voice using OpenAI's Whisper model and injects the text directly into any active text field. No internet required, no clipboard interference.
+Voix is a menu bar application that transcribes your voice using OpenAI's Whisper model and injects the text directly into any active text field. No internet required, no clipboard interference.
 
 ![Status](https://img.shields.io/badge/macOS-13%2B-blue)
 ![Electron](https://img.shields.io/badge/Electron-26.6.10-purple)
@@ -56,7 +56,7 @@ npm run install:whisper
 
 ### 4. Download Whisper Model
 
-Download at least one model (base is recommended for speed/accuracy balance). Models are stored under your app data directory (macOS: `~/Library/Application Support/KeyboardLess/models`):
+Download at least one model (base is recommended for speed/accuracy balance). Models are stored under your app data directory (macOS: `~/Library/Application Support/Voix/models`):
 
 ```bash
 # Base model (recommended - ~140MB)
@@ -92,17 +92,17 @@ The app will appear in your menu bar (⌘).
 
 ## First Run - Accessibility Permission
 
-On first launch, you'll see a permission request window. KeyboardLess requires Accessibility permission to:
+On first launch, you'll see a permission request window. Voix requires Accessibility permission to:
 
 - Monitor the Command key globally
 - Inject text into focused fields
 
-Click **"Open System Settings"** and enable KeyboardLess under **Privacy & Security → Accessibility**.
+Click **"Open System Settings"** and enable Voix under **Privacy & Security → Accessibility**.
 
 ## Project Structure
 
 ```
-KeyboardLess/
+Voix/
 ├── src/
 │   ├── main/                    # Electron Main Process (TypeScript)
 │   │   ├── main.ts              # App lifecycle, coordination
@@ -189,12 +189,12 @@ This project uses git worktree for parallel feature development:
 
 1. Create a new worktree for a feature:
    ```bash
-   git worktree add -b feature/your-feature-name ../KeyboardLess-feature main
+   git worktree add -b feature/your-feature-name ../Voix-feature main
    ```
 
 2. Navigate to the worktree:
    ```bash
-   cd ../KeyboardLess-feature
+   cd ../Voix-feature
    ```
 
 3. Make your changes and commit in the worktree:
@@ -215,7 +215,7 @@ This project uses git worktree for parallel feature development:
 
 6. Remove worktree after merge:
    ```bash
-   git worktree remove ../KeyboardLess-feature
+   git worktree remove ../Voix-feature
    ```
 
 ### Project Status
@@ -260,7 +260,7 @@ xcode-select --install
 
 1. **Check Accessibility Permission:**
    - System Settings → Privacy & Security → Accessibility
-   - Ensure KeyboardLess is enabled
+   - Ensure Voix is enabled
 
 2. **Check Console Logs:**
    - Look for "Hotkey monitoring started" message

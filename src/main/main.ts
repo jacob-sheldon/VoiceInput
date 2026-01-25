@@ -63,7 +63,7 @@ class AudioRecorder extends EventEmitter {
   private nativeRecorder: any;
 }
 
-class KeyboardLessApp {
+class VoixApp {
   private tray: Tray | null = null;
   private statusWindow: BrowserWindow | null = null;
   private permissionWindow: BrowserWindow | null = null;
@@ -92,6 +92,7 @@ class KeyboardLessApp {
   }
 
   private setupElectronApp(): void {
+    app.setName('Voix');
     app.whenReady().then(() => {
       this.loadModelPreference();
       this.createTray();
@@ -126,7 +127,7 @@ class KeyboardLessApp {
     ]);
 
     this.tray.setContextMenu(contextMenu);
-    this.tray.setToolTip('KeyboardLess - Double-press ⌘ to speak, press ⌘ to stop');
+    this.tray.setToolTip('Voix - Double-press ⌘ to speak, press ⌘ to stop');
   }
 
   private enableHotkeyMonitor(): void {
@@ -427,7 +428,7 @@ class KeyboardLessApp {
     const label = spec?.label ?? effectiveModelId;
     const modelLabel = effectiveModelId
       ? `Model: ${label}${selectedModelId ? '' : ' (auto)'}`
-      : 'Model: None (Download...)';
+      : 'Model: None';
     const statusLabels = {
       idle: 'Status: Idle',
       listening: 'Status: Listening...',
@@ -775,4 +776,4 @@ class KeyboardLessApp {
 }
 
 // Initialize the app
-new KeyboardLessApp();
+new VoixApp();

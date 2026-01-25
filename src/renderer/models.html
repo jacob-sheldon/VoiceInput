@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Models - KeyboardLess</title>
+  <title>Models - Voix</title>
   <style>
     :root {
       --bg: #0c1118;
@@ -179,6 +179,11 @@
     .model-badge.best {
       background: rgba(59, 212, 197, 0.16);
       color: var(--accent);
+    }
+
+    .model-badge.recommended {
+      background: rgba(255, 179, 71, 0.2);
+      color: var(--accent-2);
     }
 
     .model-badge.installed {
@@ -360,14 +365,14 @@
 <body>
   <div class="window">
     <div class="title-bar">
-      <h1>KeyboardLess Models</h1>
+      <h1>Voix Models</h1>
       <button class="close-btn" id="closeBtn">×</button>
     </div>
     <div class="content">
       <div class="hero">
         <div class="hero-text">
           <h2>Local Model Library</h2>
-          <p>Download a Whisper model and keep it on your Mac. Choose which installed model KeyboardLess should use for transcription.</p>
+          <p>Download a Whisper model and keep it on your Mac. Choose which installed model Voix should use for transcription.</p>
         </div>
         <div class="status-pill warning" id="statusPill">No model installed</div>
       </div>

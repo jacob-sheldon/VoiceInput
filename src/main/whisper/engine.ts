@@ -16,7 +16,7 @@ export class WhisperEngine {
   private readonly config: WhisperConfig;
 
   constructor(config?: Partial<WhisperConfig>) {
-    this.tempDir = path.join(os.tmpdir(), 'keyboardless-audio');
+    this.tempDir = path.join(os.tmpdir(), 'voix-audio');
     if (!fs.existsSync(this.tempDir)) {
       fs.mkdirSync(this.tempDir, { recursive: true });
     }

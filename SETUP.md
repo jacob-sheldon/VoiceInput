@@ -88,7 +88,7 @@ To verify everything is working:
 ## Project File Overview
 
 ```
-KeyboardLess/
+Voix/
 ├── package.json           # Project config
 ├── binding.gyp            # Native module build config
 ├── tsconfig.*.json        # TypeScript configs

@@ -4,21 +4,21 @@ const https = require('https');
 const { execSync } = require('child_process');
 
 function getModelsDir() {
-  if (process.env.KEYBOARDLESS_MODELS_DIR) {
-    return process.env.KEYBOARDLESS_MODELS_DIR;
+  if (process.env.VOIX_MODELS_DIR) {
+    return process.env.VOIX_MODELS_DIR;
   }
 
   if (process.platform === 'darwin') {
     const home = process.env.HOME || process.env.USERPROFILE;
     if (home) {
-      return path.join(home, 'Library', 'Application Support', 'KeyboardLess', 'models');
+      return path.join(home, 'Library', 'Application Support', 'Voix', 'models');
     }
   }
 
   if (process.platform === 'win32') {
     const appData = process.env.APPDATA || process.env.LOCALAPPDATA;
     if (appData) {
-      return path.join(appData, 'KeyboardLess', 'models');
+      return path.join(appData, 'Voix', 'models');
     }
   }
 

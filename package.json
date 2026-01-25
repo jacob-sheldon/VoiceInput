@@ -1,5 +1,5 @@
 {
-  "name": "keyboardless",
+  "name": "voix",
   "version": "1.0.0",
   "description": "macOS voice input application using Electron + whisper.cpp",
   "main": "dist/main/main.js",
@@ -40,8 +40,8 @@
     "node": ">=18.0.0"
   },
   "build": {
-    "appId": "com.keyboardless.app",
-    "productName": "KeyboardLess",
+    "appId": "com.voix.app",
+    "productName": "Voix",
     "npmRebuild": false,
     "directories": {
       "output": "release"

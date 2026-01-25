@@ -236,6 +236,12 @@ type DownloadProgress = {
 
     if (badgeWrap) {
       badgeWrap.innerHTML = '';
+      if (model.id === 'medium') {
+        const recommendedBadge = document.createElement('span');
+        recommendedBadge.className = 'model-badge recommended';
+        recommendedBadge.textContent = '推荐';
+        badgeWrap.appendChild(recommendedBadge);
+      }
       if (bestModelId === model.id) {
         const bestBadge = document.createElement('span');
         bestBadge.className = 'model-badge best';

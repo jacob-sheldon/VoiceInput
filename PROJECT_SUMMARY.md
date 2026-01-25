@@ -1,4 +1,4 @@
-# KeyboardLess - Project Summary
+# Voix - Project Summary
 
 ## Complete macOS Voice Input Application
 
@@ -7,7 +7,7 @@ This is a fully functional, production-ready macOS voice input application built
 ## Project Structure
 
 ```
-KeyboardLess/
+Voix/
 ├── src/
 │   ├── main/                    # Electron Main Process
 │   │   ├── main.ts              # Entry point, app lifecycle

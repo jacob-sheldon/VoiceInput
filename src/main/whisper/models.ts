@@ -66,7 +66,7 @@ export function getModelDownloadUrls(modelId: string): string[] {
     throw new Error(`Unknown model id: ${modelId}`);
   }
 
-  const envUrls = process.env.KEYBOARDLESS_MODEL_BASE_URLS;
+  const envUrls = process.env.VOIX_MODEL_BASE_URLS;
   const baseUrls = envUrls
     ? envUrls.split(',').map((entry) => entry.trim()).filter(Boolean)
     : [CAS_BRIDGE_URL, BASE_URL, MIRROR_URL];
@@ -75,7 +75,7 @@ export function getModelDownloadUrls(modelId: string): string[] {
 }
 
 export function getModelsDir(): string {
-  const overrideDir = process.env.KEYBOARDLESS_MODELS_DIR;
+  const overrideDir = process.env.VOIX_MODELS_DIR;
   if (overrideDir && overrideDir.trim().length > 0) {
     return overrideDir;
   }
