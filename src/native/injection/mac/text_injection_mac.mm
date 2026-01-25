@@ -85,33 +85,60 @@ class TextInjectionImpl::Impl {
           return false;
         }
 
-        // Method 1: Try to set the value directly (works for text fields)
+        // Method 1: Replace selected text if supported (preserves cursor and formatting)
         bool success = false;
 
-        // First try: Direct value setting
-        AXValueRef existingValue = nullptr;
-        error = AXUIElementCopyAttributeValue(focusedElement, kAXValueAttribute, (CFTypeRef*)&existingValue);
+        Boolean canSetSelectedText = false;
+        CFRange beforeRange = {0, 0};
+        bool hasBeforeRange = false;
+        AXValueRef beforeRangeValue = nullptr;
 
-        if (error == kAXErrorSuccess) {
-          // Get current value
-          id currentObj = (__bridge id)existingValue;
-          NSString* currentText = @"";
-
-          if ([currentObj isKindOfClass:[NSString class]]) {
-            currentText = (NSString*)currentObj;
+        if (AXUIElementIsAttributeSettable(focusedElement, kAXSelectedTextAttribute, &canSetSelectedText) ==
+                kAXErrorSuccess &&
+            canSetSelectedText) {
+          AXError rangeError = AXUIElementCopyAttributeValue(
+              focusedElement,
+              kAXSelectedTextRangeAttribute,
+              (CFTypeRef*)&beforeRangeValue);
+          if (rangeError == kAXErrorSuccess && beforeRangeValue &&
+              AXValueGetType(beforeRangeValue) == kAXValueTypeCFRange) {
+            hasBeforeRange = AXValueGetValue(beforeRangeValue, kAXValueTypeCFRange, &beforeRange);
           }
 
-          // Append new text
-          NSString* newText = [currentText stringByAppendingString:nsText];
-
-          // Set the new value directly (not using AXValue for NSString)
-          error = AXUIElementSetAttributeValue(focusedElement, kAXValueAttribute, (__bridge CFTypeRef)newText);
+          error = AXUIElementSetAttributeValue(focusedElement, kAXSelectedTextAttribute, (__bridge CFTypeRef)nsText);
           success = (error == kAXErrorSuccess);
 
-          if (existingValue) CFRelease(existingValue);
+          if (success && hasBeforeRange) {
+            AXValueRef afterRangeValue = nullptr;
+            CFRange afterRange = {0, 0};
+            bool hasAfterRange = false;
+            AXError afterError = AXUIElementCopyAttributeValue(
+                focusedElement,
+                kAXSelectedTextRangeAttribute,
+                (CFTypeRef*)&afterRangeValue);
+            if (afterError == kAXErrorSuccess && afterRangeValue &&
+                AXValueGetType(afterRangeValue) == kAXValueTypeCFRange) {
+              hasAfterRange = AXValueGetValue(afterRangeValue, kAXValueTypeCFRange, &afterRange);
+            }
+
+            if (hasAfterRange &&
+                beforeRange.location == afterRange.location &&
+                beforeRange.length == afterRange.length) {
+              // Likely ignored by the target app; allow fallback injection.
+              success = false;
+            }
+
+            if (afterRangeValue) CFRelease(afterRangeValue);
+          }
+        }
+        if (beforeRangeValue) CFRelease(beforeRangeValue);
+
+        // Method 2: If Accessibility editing failed, use clipboard paste
+        if (!success) {
+          success = InjectTextViaClipboard(text);
         }
 
-        // Method 2: If direct setting failed, use CGEvent keyboard simulation
+        // Method 3: If clipboard paste failed, use CGEvent keyboard simulation
         if (!success) {
           success = SimulateTyping(nsText);
         }

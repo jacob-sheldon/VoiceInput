@@ -165,7 +165,10 @@
     .model-badges {
       display: flex;
       align-items: center;
+      justify-content: flex-end;
       gap: 6px;
+      flex-wrap: wrap;
+      max-width: 65%;
     }
 
     .model-badge {
@@ -174,6 +177,7 @@
       border-radius: 999px;
       text-transform: uppercase;
       letter-spacing: 0.06em;
+      white-space: nowrap;
     }
 
     .model-badge.best {

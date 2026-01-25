@@ -98,10 +98,6 @@ type DownloadProgress = {
       h3.textContent = model.label;
       title.appendChild(h3);
 
-      const badgeWrap = document.createElement('div');
-      badgeWrap.className = 'model-badges';
-      title.appendChild(badgeWrap);
-
       const meta = document.createElement('div');
       meta.className = 'model-meta';
       meta.textContent = model.description;
@@ -171,6 +167,10 @@ type DownloadProgress = {
       card.appendChild(title);
       card.appendChild(meta);
       card.appendChild(footer);
+
+      const badgeWrap = document.createElement('div');
+      badgeWrap.className = 'model-badges';
+      title.appendChild(badgeWrap);
 
       const progressWrap = document.createElement('div');
       progressWrap.className = 'progress';
@@ -247,18 +247,6 @@ type DownloadProgress = {
         bestBadge.className = 'model-badge best';
         bestBadge.textContent = 'Best';
         badgeWrap.appendChild(bestBadge);
-      }
-      if (activeModelId === model.id) {
-        const activeBadge = document.createElement('span');
-        activeBadge.className = 'model-badge active';
-        activeBadge.textContent = 'Active';
-        badgeWrap.appendChild(activeBadge);
-      }
-      if (model.installed) {
-        const installedBadge = document.createElement('span');
-        installedBadge.className = 'model-badge installed';
-        installedBadge.textContent = 'Installed';
-        badgeWrap.appendChild(installedBadge);
       }
     }
 
