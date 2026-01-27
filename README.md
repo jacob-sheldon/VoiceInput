@@ -1,8 +1,8 @@
 # Voix
 
-> A macOS voice input application - Hold Command to speak, release to type.
+> A macOS menu bar voice input app - double-press Command to speak, press Command to stop.
 
-Voix is a menu bar application that transcribes your voice using OpenAI's Whisper model and injects the text directly into any active text field. No internet required, no clipboard interference.
+Voix transcribes your voice locally with whisper.cpp and injects text into the active app. No cloud services required.
 
 ![Status](https://img.shields.io/badge/macOS-13%2B-blue)
 ![Electron](https://img.shields.io/badge/Electron-26.6.10-purple)
@@ -10,21 +10,18 @@ Voix is a menu bar application that transcribes your voice using OpenAI's Whispe
 
 ## Features
 
-- **Global Command Key Trigger** - Hold ⌘ to speak, release to transcribe
-- **Local Speech Recognition** - Uses whisper.cpp for offline, privacy-preserving transcription
-- **Direct Text Injection** - Bypasses clipboard using macOS Accessibility API
-- **Menu Bar App** - Runs unobtrusively in your menu bar
-- **Native Performance** - C++/Objective-C++ modules for low-latency hotkey monitoring
+- **Double-press Command Trigger** - Double-press Command to start recording, press Command to stop
+- **Offline Speech Recognition** - whisper.cpp transcription with local models
+- **Native Audio Capture** - AVFoundation recorder with live level meter
+- **Direct Text Injection** - Accessibility API injection with clipboard fallback for terminals
+- **Model Manager UI** - Download, delete, and choose models from the tray
+- **Menu Bar App** - Lightweight status HUD and tray controls
 
 ## How It Works
 
 ```
-┌─────────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────────┐
-│ Hold ⌘ Key     │────▶│ Audio Record │────▶│ Whisper STT │────▶│ Text Inject  │
-└─────────────────┘     └──────────────┘     └─────────────┘     └──────────────┘
-                              │                                      │
-                              ▼                                      ▼
-                        "Listening..."                         Into Active Field
+Command Command    Record    Transcribe    Inject
+(Double-press) -> Audio -> whisper.cpp -> Active Text Field
 ```
 
 ## System Requirements
@@ -32,137 +29,103 @@ Voix is a menu bar application that transcribes your voice using OpenAI's Whispe
 - **macOS**: 13.0 or later (Ventura, Sonoma, Sequoia)
 - **Architecture**: Apple Silicon (arm64) or Intel (x64)
 - **Node.js**: 18.0 or later
-- **Xcode Command Line Tools**: For building native modules
+- **Xcode Command Line Tools**: native module builds
+- **CMake**: required to build whisper.cpp
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1) Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Build Native Modules
+### 2) Build Native Modules + TypeScript
 
 ```bash
-npm run build:native
+npm run build
 ```
 
-### 3. Install whisper.cpp
+### 3) Install whisper.cpp
 
 ```bash
 npm run install:whisper
 ```
 
-### 4. Download Whisper Model
-
-Download at least one model (base is recommended for speed/accuracy balance). Models are stored under your app data directory (macOS: `~/Library/Application Support/Voix/models`):
+### 4) Download a Model
 
 ```bash
-# Base model (recommended - ~140MB)
+# Base model (balanced speed/accuracy)
 npm run download:model base
 
-# Small model (slower, more accurate - ~460MB)
-npm run download:model small
-
-# Medium model (higher accuracy - ~1.4GB)
-npm run download:model medium
-
-# Large v3 model (best accuracy - ~2.9GB)
-npm run download:model large-v3
+# Other options: small, medium, large-v3
 ```
 
-### 5. Build & Run
+### 5) Run
 
 ```bash
-npm run build
 npm start
 ```
 
-The app will appear in your menu bar (⌘).
+For local development:
+
+```bash
+npm run dev
+```
 
 ## Usage
 
-1. Click on any text input field in any application (TextEdit, Notes, browser, etc.)
-2. Hold the **Command key (⌘)**
-3. A status indicator appears showing "Listening..." with a red dot
-4. Speak your text clearly
-5. Release the Command key
-6. The transcribed text will be automatically inserted into the text field
+1. Focus any text field (Notes, browser, editor, etc.)
+2. Double-press the Command key to start recording
+3. Speak clearly while the status HUD shows Recording
+4. Press Command once to stop
+5. Voix transcribes and injects the text into the focused app
 
-## First Run - Accessibility Permission
+Terminal apps receive a clipboard-based injection fallback.
 
-On first launch, you'll see a permission request window. Voix requires Accessibility permission to:
+## Models
 
-- Monitor the Command key globally
-- Inject text into focused fields
+- Open **Models...** from the tray menu to download or delete models.
+- The app auto-selects the best installed model if you have not chosen one.
+- Models are stored in `~/Library/Application Support/Voix/models` by default.
+- Override the model directory with `VOIX_MODELS_DIR`.
 
-Click **"Open System Settings"** and enable Voix under **Privacy & Security → Accessibility**.
+You can also use the CLI helper:
+
+```bash
+npm run download:model base
+```
+
+## Permissions
+
+- **Accessibility**: required to monitor the hotkey and inject text
+- **Microphone**: required for recording
+
+Grant permissions in **System Settings > Privacy & Security > Accessibility**. macOS will prompt for microphone access on first use.
 
 ## Project Structure
 
 ```
 Voix/
-├── src/
-│   ├── main/                    # Electron Main Process (TypeScript)
-│   │   ├── main.ts              # App lifecycle, coordination
-│   │   ├── types.ts             # AppState type definitions
-│   │   └── whisper/
-│   │       └── engine.ts        # Whisper STT integration
-│   ├── preload/
-│   │   └── preload.ts           # IPC bridge (secure)
-│   ├── renderer/                # UI Process
-│   │   ├── index.html           # Status window
-│   │   ├── permission.html      # Permission request
-│   │   ├── permission.js        # Permission handling
-│   │   └── ui.ts                # UI logic
-│   └── native/                  # Native Addons (C++/Obj-C++)
-│       ├── hotkey/              # Command key monitor
-│       │   └── mac/
-│       │       └── hotkey_monitor_mac.mm
-│       ├── audio/               # Native audio recorder
-│       │   └── mac/
-│       │       └── audio_recorder_mac.mm
-│       └── injection/           # Text injection
-│           └── mac/
-│               └── text_injection_mac.mm
-├── scripts/                     # Build & setup scripts
-├── models/                      # Whisper models (gitignored)
-├── native-deps/                 # whisper.cpp (gitignored)
-└── build/Release/               # Compiled .node files
+  src/
+    main/                  # Electron main process
+      main.ts              # App lifecycle, tray, IPC
+      whisper/             # whisper.cpp orchestration
+    preload/               # IPC bridge
+    renderer/              # Status + models UI
+      index.html           # Status HUD
+      models.html          # Model manager window
+      models_prompt.html   # No-model prompt
+    native/                # C++/Obj-C++ modules
+      hotkey/              # Command key monitor
+      audio/               # Native audio recorder
+      injection/           # Text injection
+  scripts/                 # Build/setup helpers
+  dist/                    # Compiled JS output
+  build/Release/           # Compiled .node modules
 ```
 
-## Architecture
-
-### Electron Main Process
-- Manages application lifecycle
-- Creates tray icon and status window
-- Coordinates between native modules
-- Handles state transitions
-
-### Native Modules
-
-#### Hotkey Monitor (`hotkey_monitor.node`)
-Uses macOS Event Taps (`CGEventTapCreate`) to globally monitor Command key events without interfering with normal shortcuts.
-
-**Location**: `src/native/hotkey/mac/hotkey_monitor_mac.mm:140`
-
-#### Audio Recorder (`audio_recorder.node`)
-Uses `AVAudioEngine` for native audio capture to in-memory buffers.
-
-**Location**: `src/native/audio/mac/audio_recorder_mac.mm`
-
-#### Text Injection (`text_injection.node`)
-Uses `AXUIElement` API to directly inject text into the focused element, bypassing the clipboard.
-
-**Location**: `src/native/injection/mac/text_injection_mac.mm`
-
-### Whisper Engine
-Spawns whisper.cpp as a child process, passes audio data, receives transcription results.
-
 ## Development
-
-### Build Commands
 
 ```bash
 # Build native modules only
@@ -183,144 +146,32 @@ npm run dev
 npm run dist:mac
 ```
 
-### Git Worktree Workflow
-
-This project uses git worktree for parallel feature development:
-
-1. Create a new worktree for a feature:
-   ```bash
-   git worktree add -b feature/your-feature-name ../Voix-feature main
-   ```
-
-2. Navigate to the worktree:
-   ```bash
-   cd ../Voix-feature
-   ```
-
-3. Make your changes and commit in the worktree:
-   ```bash
-   git add .
-   git commit -m "feat: description of your changes"
-   ```
-
-4. Push the feature branch:
-   ```bash
-   git push -u origin feature/your-feature-name
-   ```
-
-5. List all worktrees:
-   ```bash
-   git worktree list
-   ```
-
-6. Remove worktree after merge:
-   ```bash
-   git worktree remove ../Voix-feature
-   ```
-
-### Project Status
-
-| Component | Status |
-|-----------|--------|
-| Command Key Monitoring | ✅ Working |
-| Audio Recording | ✅ Working |
-| Whisper Transcription | ✅ Working |
-| Text Injection | ✅ Working |
-| Status Window UI | ✅ Working |
-| Permission Flow | ✅ Working |
-
-### Recent Fixes
-
-**v1.0.0** - Fixed hotkey monitor not starting when accessibility permission was already granted. The monitor now starts automatically on app launch when permission exists.
-
-## Development Roadmap
-
-### Upcoming Features
-
-| Feature | Status | Priority |
-|---------|--------|----------|
-| Chinese Language Support | 📋 Planned | High |
-
-#### Chinese Language Support
-- [ ] Remove `-l` language flag to enable auto-detection
-- [ ] Download general Whisper models (without `.en` suffix)
-- [ ] Update model path logic for multi-language models
-- [ ] Update documentation for Chinese users
-
 ## Troubleshooting
 
-### Native Module Build Fails
+### Hotkey Not Working
+- Ensure Accessibility permission is enabled
+- Use the tray menu: **Enable Hotkey**
+- Restart the app after granting permissions
 
-**Install Xcode Command Line Tools:**
-```bash
-xcode-select --install
-```
+### whisper.cpp Binary Missing
+- Run: `npm run install:whisper`
+- Verify: `native-deps/whisper.cpp/build/bin/whisper-cli`
 
-### App Not Responding to Command Key
+### Model Not Found
+- Open **Models...** from the tray menu and download one
+- Or run: `npm run download:model base`
+- Check your model directory if `VOIX_MODELS_DIR` is set
 
-1. **Check Accessibility Permission:**
-   - System Settings → Privacy & Security → Accessibility
-   - Ensure Voix is enabled
-
-2. **Check Console Logs:**
-   - Look for "Hotkey monitoring started" message
-   - Run from terminal to see logs: `npm start`
-
-3. **Verify Native Module:**
-   ```bash
-   ls build/Release/hotkey_monitor.node
-   ```
-
-### Whisper Not Transcribing
-
-1. **Verify whisper.cpp Installation:**
-   ```bash
-   ls native-deps/whisper.cpp/main
-   ```
-
-2. **Download Model:**
-   ```bash
-   npm run download:model base
-   ls models/ggml-base.bin
-   ```
-
-### Text Not Inserting
-
-- Make sure you click in a text field before speaking
-- Some apps may have restrictions on external text injection
-- Try in TextEdit or Notes first to confirm functionality
-
-## Configuration
-
-Edit `src/main/main.ts` to configure Whisper:
-
-```typescript
-this.whisperEngine = new WhisperEngine({
-  model: 'base',     // 'base' | 'small' | 'medium' | 'large-v3'
-  language: 'en',    // Language code (auto-detect if not specified)
-  threads: 4         // Number of CPU threads for transcription
-});
-```
-
-## Model Comparison
-
-| Model | Size | Speed | Accuracy |
-|-------|------|-------|----------|
-| base | 140MB | ⚡⚡ | Very Good |
-| small | 460MB | ⚡ | Excellent |
-| medium | 1.4GB | ~ | Outstanding |
-| large-v3 | 2.9GB | ~ | Best |
+### No Text Injected
+- Ensure Accessibility permission is enabled
+- Try a non-terminal app to confirm direct injection
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License - see LICENSE for details.
 
 ## Acknowledgments
 
-- [whisper.cpp](https://github.com/ggerganov/whisper.cpp) - OpenAI Whisper in C/C++
-- [Electron](https://www.electronjs.org/) - Cross-platform desktop framework
-- [NAN](https://github.com/nodejs/nan) - Native Abstractions for Node.js
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
+- [Electron](https://www.electronjs.org/)
+- [NAN](https://github.com/nodejs/nan)
