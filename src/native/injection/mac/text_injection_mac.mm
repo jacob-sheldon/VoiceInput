@@ -3,6 +3,128 @@
 #import <Carbon/Carbon.h>
 #import <ApplicationServices/ApplicationServices.h>
 
+#if __has_feature(objc_arc)
+#define AX_AUTORELEASE(obj) (obj)
+#else
+#define AX_AUTORELEASE(obj) [(obj) autorelease]
+#endif
+
+struct AXTextSnapshot {
+  NSString* selectedText;
+  NSString* valueText;
+  bool hasRange;
+  CFRange range;
+};
+
+enum class VerifyResult {
+  kSuccess,
+  kFailure,
+  kUnknown
+};
+
+static NSString* CopyAXStringAttribute(AXUIElementRef element, CFStringRef attribute) {
+  if (!element) return nil;
+
+  CFTypeRef value = nullptr;
+  AXError error = AXUIElementCopyAttributeValue(element, attribute, &value);
+  if (error != kAXErrorSuccess || !value) {
+    return nil;
+  }
+
+  NSString* result = nil;
+  if (CFGetTypeID(value) == CFStringGetTypeID()) {
+    result = AX_AUTORELEASE([(__bridge NSString*)value copy]);
+  } else if (CFGetTypeID(value) == CFAttributedStringGetTypeID()) {
+    NSAttributedString* attributed = (__bridge NSAttributedString*)value;
+    result = AX_AUTORELEASE([[attributed string] copy]);
+  }
+
+  CFRelease(value);
+  return result;
+}
+
+static AXTextSnapshot CaptureSnapshot(AXUIElementRef element) {
+  AXTextSnapshot snapshot;
+  snapshot.selectedText = CopyAXStringAttribute(element, kAXSelectedTextAttribute);
+  snapshot.valueText = CopyAXStringAttribute(element, kAXValueAttribute);
+  snapshot.hasRange = false;
+  snapshot.range = CFRange{0, 0};
+
+  AXValueRef rangeValue = nullptr;
+  AXError rangeError = AXUIElementCopyAttributeValue(
+      element,
+      kAXSelectedTextRangeAttribute,
+      (CFTypeRef*)&rangeValue);
+  if (rangeError == kAXErrorSuccess && rangeValue &&
+      AXValueGetType(rangeValue) == kAXValueTypeCFRange) {
+    snapshot.hasRange = AXValueGetValue(rangeValue, kAXValueTypeCFRange, &snapshot.range);
+  }
+  if (rangeValue) CFRelease(rangeValue);
+
+  return snapshot;
+}
+
+static bool BuildExpectedValue(NSString* beforeValue,
+                               const CFRange& beforeRange,
+                               NSString* insertedText,
+                               NSString** expectedOut) {
+  if (!beforeValue || !insertedText || !expectedOut) return false;
+
+  NSUInteger length = [beforeValue length];
+  if (beforeRange.location > (CFIndex)length) return false;
+  if (beforeRange.location + beforeRange.length > (CFIndex)length) return false;
+
+  NSRange range = NSMakeRange((NSUInteger)beforeRange.location, (NSUInteger)beforeRange.length);
+  *expectedOut = [beforeValue stringByReplacingCharactersInRange:range withString:insertedText];
+  return (*expectedOut != nil);
+}
+
+static VerifyResult EvaluateInsertion(const AXTextSnapshot& before,
+                                      const AXTextSnapshot& after,
+                                      NSString* insertedText) {
+  if (!insertedText || [insertedText length] == 0) return VerifyResult::kSuccess;
+
+  bool hasEvidence = false;
+
+  if (after.selectedText) {
+    hasEvidence = true;
+    if ([after.selectedText isEqualToString:insertedText]) {
+      return VerifyResult::kSuccess;
+    }
+  }
+
+  if (before.selectedText) {
+    hasEvidence = true;
+    if ([before.selectedText isEqualToString:insertedText]) {
+      return VerifyResult::kSuccess;
+    }
+  }
+
+  if (before.valueText && after.valueText) {
+    hasEvidence = true;
+    if (![before.valueText isEqualToString:after.valueText]) {
+      if ([after.valueText rangeOfString:insertedText].location != NSNotFound) {
+        return VerifyResult::kSuccess;
+      }
+
+      if (before.hasRange) {
+        NSString* expected = nil;
+        if (BuildExpectedValue(before.valueText, before.range, insertedText, &expected) &&
+            expected &&
+            [expected isEqualToString:after.valueText]) {
+          return VerifyResult::kSuccess;
+        }
+      }
+    }
+  }
+
+  if (!hasEvidence) {
+    return VerifyResult::kUnknown;
+  }
+
+  return VerifyResult::kFailure;
+}
+
 // Check if bundle ID is a terminal (simplified, no static set)
 static bool IsTerminalBundleId(NSString* bundleId) {
   if (!bundleId) return false;
@@ -87,58 +209,87 @@ class TextInjectionImpl::Impl {
 
         // Method 1: Replace selected text if supported (preserves cursor and formatting)
         bool success = false;
+        bool rangeUnchanged = false;
+        AXTextSnapshot before = CaptureSnapshot(focusedElement);
 
         Boolean canSetSelectedText = false;
-        CFRange beforeRange = {0, 0};
-        bool hasBeforeRange = false;
-        AXValueRef beforeRangeValue = nullptr;
-
         if (AXUIElementIsAttributeSettable(focusedElement, kAXSelectedTextAttribute, &canSetSelectedText) ==
                 kAXErrorSuccess &&
             canSetSelectedText) {
-          AXError rangeError = AXUIElementCopyAttributeValue(
-              focusedElement,
-              kAXSelectedTextRangeAttribute,
-              (CFTypeRef*)&beforeRangeValue);
-          if (rangeError == kAXErrorSuccess && beforeRangeValue &&
-              AXValueGetType(beforeRangeValue) == kAXValueTypeCFRange) {
-            hasBeforeRange = AXValueGetValue(beforeRangeValue, kAXValueTypeCFRange, &beforeRange);
-          }
-
           error = AXUIElementSetAttributeValue(focusedElement, kAXSelectedTextAttribute, (__bridge CFTypeRef)nsText);
-          success = (error == kAXErrorSuccess);
+          if (error == kAXErrorSuccess) {
+            AXTextSnapshot after = CaptureSnapshot(focusedElement);
+            VerifyResult verify = EvaluateInsertion(before, after, nsText);
 
-          if (success && hasBeforeRange) {
-            AXValueRef afterRangeValue = nullptr;
-            CFRange afterRange = {0, 0};
-            bool hasAfterRange = false;
-            AXError afterError = AXUIElementCopyAttributeValue(
-                focusedElement,
-                kAXSelectedTextRangeAttribute,
-                (CFTypeRef*)&afterRangeValue);
-            if (afterError == kAXErrorSuccess && afterRangeValue &&
-                AXValueGetType(afterRangeValue) == kAXValueTypeCFRange) {
-              hasAfterRange = AXValueGetValue(afterRangeValue, kAXValueTypeCFRange, &afterRange);
+            if (before.hasRange && after.hasRange &&
+                before.range.location == after.range.location &&
+                before.range.length == after.range.length) {
+              rangeUnchanged = true;
             }
 
-            if (hasAfterRange &&
-                beforeRange.location == afterRange.location &&
-                beforeRange.length == afterRange.length) {
-              // Likely ignored by the target app; allow fallback injection.
+            if (verify == VerifyResult::kSuccess) {
+              success = true;
+            } else if (verify == VerifyResult::kUnknown && !rangeUnchanged) {
+              success = true;
+            } else {
               success = false;
             }
-
-            if (afterRangeValue) CFRelease(afterRangeValue);
           }
         }
-        if (beforeRangeValue) CFRelease(beforeRangeValue);
 
-        // Method 2: If Accessibility editing failed, use clipboard paste
+        // Method 2: If Accessibility editing failed, try setting AXValueAttribute
         if (!success) {
-          success = InjectTextViaClipboard(text);
+          before = CaptureSnapshot(focusedElement);
+          Boolean canSetValue = false;
+          if (AXUIElementIsAttributeSettable(focusedElement, kAXValueAttribute, &canSetValue) ==
+                  kAXErrorSuccess &&
+              canSetValue &&
+              before.valueText &&
+              before.hasRange) {
+            NSString* newValue = nil;
+            if (BuildExpectedValue(before.valueText, before.range, nsText, &newValue) && newValue) {
+              AXError setError = AXUIElementSetAttributeValue(
+                  focusedElement,
+                  kAXValueAttribute,
+                  (__bridge CFTypeRef)newValue);
+              if (setError == kAXErrorSuccess) {
+                // Restore cursor position if possible
+                Boolean canSetRange = false;
+                if (AXUIElementIsAttributeSettable(focusedElement, kAXSelectedTextRangeAttribute, &canSetRange) ==
+                        kAXErrorSuccess &&
+                    canSetRange) {
+                  CFRange newRange = {before.range.location + (CFIndex)[nsText length], 0};
+                  AXValueRef rangeValue = AXValueCreate(kAXValueTypeCFRange, &newRange);
+                  if (rangeValue) {
+                    AXUIElementSetAttributeValue(focusedElement, kAXSelectedTextRangeAttribute, rangeValue);
+                    CFRelease(rangeValue);
+                  }
+                }
+
+                AXTextSnapshot after = CaptureSnapshot(focusedElement);
+                VerifyResult verify = EvaluateInsertion(before, after, nsText);
+                if (verify == VerifyResult::kSuccess || verify == VerifyResult::kUnknown) {
+                  success = true;
+                }
+              }
+            }
+          }
         }
 
-        // Method 3: If clipboard paste failed, use CGEvent keyboard simulation
+        // Method 3: If Accessibility editing failed, use clipboard paste
+        if (!success) {
+          before = CaptureSnapshot(focusedElement);
+          bool pasteSuccess = InjectTextViaClipboard(text);
+          if (pasteSuccess) {
+            AXTextSnapshot after = CaptureSnapshot(focusedElement);
+            VerifyResult verify = EvaluateInsertion(before, after, nsText);
+            if (verify == VerifyResult::kSuccess || verify == VerifyResult::kUnknown) {
+              success = true;
+            }
+          }
+        }
+
+        // Method 4: If clipboard paste failed, use CGEvent keyboard simulation
         if (!success) {
           success = SimulateTyping(nsText);
         }
